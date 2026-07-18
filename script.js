@@ -707,4 +707,143 @@ function getHolidaysForState(state,year){
   });
   return result.join('; ');
 }
+
+// ===== Formular-Übermittlung =====
+// Nach Vercel-Deployment diese URL mit der eigenen Vercel-URL ersetzen:
+var SEND_EMAIL_API = 'https://terminkoenig-plz-suche.vercel.app/api/send-email';
+
+function buildEmailCSVTable() {
+  var year = new Date().getFullYear();
+  var keys = Object.keys(sel).sort();
+  if (keys.length === 0) return '<p>Keine PLZ ausgewählt.</p>';
+  var rows = [];
+  keys.forEach(function(prefix) {
+    var state = PLZ3_STAAT ? PLZ3_STAAT[prefix] : '';
+    var holStr = getHolidaysForState(state, year);
+    var refs = centroids[prefix] || [];
+    var refLat = 0, refLon = 0;
+    refs.forEach(function(c){refLat+=c.lat; refLon+=c.lng;});
+    if (refs.length > 0) { refLat/=refs.length; refLon/=refs.length; }
+    if (plzDB) {
+      var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
+      if (matches.length === 0) {
+        rows.push([prefix+'xx','','','','','',holStr]);
+      } else {
+        matches.forEach(function(e){
+          var dist = refs.length > 0 ? String(haversine(refLat,refLon,e.lat,e.lon)).replace('.',',') : '';
+          rows.push([prefix+'xx',e.plz,e.ort,e.bundesland,e.einwohner,dist,holStr]);
+        });
+      }
+    } else {
+      rows.push([prefix+'xx','–','–','–','–','',holStr]);
+    }
+  });
+  var h = '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-size:11px;width:100%;min-width:600px;">';
+  h += '<tr style="background:#642d7b;color:#fff;"><th>PLZ-Bereich</th><th>PLZ</th><th>Ort</th><th>Bundesland</th><th>Einwohner</th><th>Entfernung km</th><th>Feiertage</th></tr>';
+  rows.forEach(function(r) {
+    h += '<tr>' + r.map(function(cell,i){ return '<td style="'+(i===6?'font-size:10px;':'')+'">'+(cell!==undefined?cell:'')+'</td>'; }).join('') + '</tr>';
+  });
+  h += '</table>';
+  return h;
+}
+
+function buildEmailHolidaySection() {
+  var year = new Date().getFullYear();
+  var stateNames = {
+    'BW':'Baden-Württemberg','BY':'Bayern','BE':'Berlin','BB':'Brandenburg','HB':'Bremen',
+    'HH':'Hamburg','HE':'Hessen','MV':'Mecklenburg-Vorpommern','NI':'Niedersachsen',
+    'NW':'Nordrhein-Westfalen','RP':'Rheinland-Pfalz','SL':'Saarland','SN':'Sachsen',
+    'ST':'Sachsen-Anhalt','SH':'Schleswig-Holstein','TH':'Thüringen'
+  };
+  var statesInSel = {};
+  Object.keys(sel).forEach(function(p3){
+    var st = PLZ3_STAAT ? PLZ3_STAAT[p3] : null;
+    if (st) statesInSel[st] = true;
+  });
+  var stateCodes = Object.keys(statesInSel).sort();
+  if (stateCodes.length === 0) return '<p>Keine Bundeslanddaten verfügbar.</p>';
+  var h = '';
+  stateCodes.forEach(function(st) {
+    var holStr = getHolidaysForState(st, year);
+    if (!holStr) return;
+    h += '<p style="margin:6px 0;"><strong>'+(stateNames[st]||st)+':</strong><br>'+holStr.replace(/; /g,'<br>')+'</p>';
+  });
+  return h || '<p>Keine Feiertage für die ausgewählten Bundesländer.</p>';
+}
+
+function submitFormular() {
+  var vorname = (document.getElementById('fmVorname').value||'').trim();
+  var nachname = (document.getElementById('fmNachname').value||'').trim();
+  var kunde = (document.getElementById('fmKunde').value||'').trim();
+  var vertrag = (document.getElementById('fmVertrag').value||'').trim();
+  var statusEl = document.getElementById('fmStatus');
+  var btn = document.getElementById('fmSendBtn');
+
+  if (!vorname || !nachname) {
+    statusEl.style.color = '#e74c3c';
+    statusEl.textContent = 'Bitte Vor- und Nachname eingeben.';
+    return;
+  }
+  if (Object.keys(sel).length === 0) {
+    statusEl.style.color = '#e74c3c';
+    statusEl.textContent = 'Bitte zuerst PLZ-Gebiete auswählen.';
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Screenshot wird erstellt…';
+  statusEl.textContent = '';
+  statusEl.style.color = '';
+
+  html2canvas(document.getElementById('map'), {
+    useCORS: true,
+    allowTaint: true,
+    scale: 1,
+    logging: false
+  }).then(function(canvas) {
+    btn.textContent = 'Wird gesendet…';
+    var imgData = canvas.toDataURL('image/jpeg', 0.75);
+    var payload = {
+      vorname: vorname,
+      nachname: nachname,
+      kundennummer: kunde,
+      vertragsnummer: vertrag,
+      mapImage: imgData,
+      csvTable: buildEmailCSVTable(),
+      holidaySection: buildEmailHolidaySection(),
+      plzCount: Object.keys(sel).length
+    };
+    fetch(SEND_EMAIL_API, {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify(payload)
+    })
+    .then(function(r){ return r.json(); })
+    .then(function(data){
+      btn.disabled = false;
+      btn.textContent = 'Auswahl senden';
+      if (data.ok) {
+        statusEl.style.color = '#27ae60';
+        statusEl.textContent = 'Erfolgreich gesendet!';
+      } else {
+        statusEl.style.color = '#e74c3c';
+        statusEl.textContent = 'Fehler: ' + (data.error||'Unbekannter Fehler');
+      }
+    })
+    .catch(function(err){
+      btn.disabled = false;
+      btn.textContent = 'Auswahl senden';
+      statusEl.style.color = '#e74c3c';
+      statusEl.textContent = 'Netzwerkfehler – bitte erneut versuchen.';
+      console.error(err);
+    });
+  }).catch(function(err){
+    btn.disabled = false;
+    btn.textContent = 'Auswahl senden';
+    statusEl.style.color = '#e74c3c';
+    statusEl.textContent = 'Screenshot-Fehler – bitte erneut versuchen.';
+    console.error(err);
+  });
+}
+
 renderCalendar();

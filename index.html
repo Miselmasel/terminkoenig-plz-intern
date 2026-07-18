@@ -88,6 +88,19 @@
   </div>
 
   <div class="s">
+    <h3>AUSWAHL SENDEN</h3>
+    <div style="font-size:11px;color:#666;margin-bottom:6px;">Auswahl per E-Mail übermitteln</div>
+    <div style="display:flex;flex-direction:column;gap:4px;">
+      <input type="text" id="fmVorname" placeholder="Vorname *" maxlength="50" style="margin:0;">
+      <input type="text" id="fmNachname" placeholder="Nachname *" maxlength="50" style="margin:0;">
+      <input type="text" id="fmKunde" placeholder="Kundennummer (optional)" maxlength="30" style="margin:0;">
+      <input type="text" id="fmVertrag" placeholder="Vertragsnummer (optional)" maxlength="30" style="margin:0;">
+    </div>
+    <button class="bb" onclick="submitFormular()" style="margin-top:6px;" id="fmSendBtn">Auswahl senden</button>
+    <div id="fmStatus" style="font-size:11px;margin-top:4px;min-height:16px;"></div>
+  </div>
+
+  <div class="s">
     <h3>FEIERTAGE</h3>
     <div id="cal"></div>
   </div>
@@ -95,6 +108,7 @@
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 <script src="script.js"></script>
 </body>
 </html>

@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "functions": {
+    "api/send-email.js": {
+      "memory": 128,
+      "maxDuration": 15
+    }
+  }
+}
