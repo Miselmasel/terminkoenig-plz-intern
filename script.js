@@ -19,6 +19,23 @@ var GEO_URL =
   "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
 var SEL_COLOR = "#e4d4ec";
 
+var preisklassenMode = false;
+var PREISKLASSEN = {
+  '01':'r','02':'g','03':'g','04':'g',
+  '06':'g','07':'g','08':'y','09':'r',
+  '10':'l','12':'l','13':'l','14':'l','15':'l','16':'r','17':'l','18':'l','19':'y',
+  '21':'l','22':'l','23':'l','24':'y','25':'y','26':'g','27':'y','28':'r','29':'y',
+  '30':'r','31':'r','32':'g','33':'g','34':'y','35':'g','36':'g','37':'y','38':'g','39':'g',
+  '40':'r','41':'l','42':'y','44':'l','45':'l','46':'y','47':'y','48':'g','49':'g',
+  '50':'r','51':'r','52':'r','53':'l','54':'g','55':'g','56':'l','57':'l','58':'g','59':'g',
+  '60':'r','61':'r','63':'r','64':'g','65':'y','66':'g','67':'g','68':'g','69':'y',
+  '70':'r','71':'r','72':'y','73':'y','74':'y','75':'r','76':'r','77':'g','78':'g','79':'g',
+  '80':'r','81':'r','82':'r','83':'y','84':'g','85':'y','86':'y','87':'y','88':'g','89':'g',
+  '90':'l','91':'l','92':'g','93':'g','94':'g','95':'g','96':'y','97':'y','98':'y','99':'y'
+};
+var PK_FILL   = { 'r':'#e74c3c','y':'#f39c12','g':'#2ecc71','l':'#642d7b' };
+var PK_BORDER = { 'r':'#c0392b','y':'#e67e22','g':'#27ae60','l':'#4a1f5c' };
+
 // Liefert einen Mittelpunkt pro einzelner Teilflaeche - bei MultiPolygon-PLZ
 // (z.B. getrennte Exklaven wie Leer bei 267) bekommt so jede Teilflaeche
 // ihr eigenes Beschriftungslabel statt nur die groesste Teilflaeche.
@@ -57,13 +74,16 @@ function ringCentroid(ring) {
 
 function styleFeature(feature) {
   var plz3 = feature.properties.plz;
+  if (preisklassenMode) {
+    var pk = PREISKLASSEN[plz3.substring(0, 2)];
+    if (pk) {
+      return sel[plz3]
+        ? { fillColor: PK_FILL[pk], fillOpacity: 0.85, color: PK_BORDER[pk], weight: 2.5 }
+        : { fillColor: PK_FILL[pk], fillOpacity: 0.35, color: PK_BORDER[pk], weight: 0.7 };
+    }
+  }
   if (sel[plz3]) {
-    return {
-      fillColor: SEL_COLOR,
-      fillOpacity: 0.5,
-      color: "#642d7b",
-      weight: 1.5
-    };
+    return { fillColor: SEL_COLOR, fillOpacity: 0.5, color: "#642d7b", weight: 1.5 };
   }
   return { fillColor: "#aaa", fillOpacity: 0.08, color: "#999", weight: 0.5 };
 }
@@ -156,6 +176,11 @@ function refreshAll() {
     geoL.setStyle(function (f) {
       return styleFeature(f);
     });
+}
+
+function togglePreisklassen() {
+  preisklassenMode = document.getElementById("pkToggle").checked;
+  refreshAll();
 }
 
 function updateSidebar() {
