@@ -281,6 +281,14 @@ function multiUmkreis() {
     );
     return;
   }
+  if (points.length > 5) {
+    alert(
+      "Maximal 5 Ausgangspunkte moeglich (aktuell " + points.length + " Gebiete ausgewaehlt). Bitte Auswahl verringern oder gezielt Punkte per Klick setzen."
+    );
+    return;
+  }
+  var countEl = document.getElementById("mpCount");
+  if (countEl) countEl.textContent = points.length;
   var km = parseInt(document.getElementById("mrs").value);
   multiCircles.clearLayers();
   points.forEach(function (p) {
