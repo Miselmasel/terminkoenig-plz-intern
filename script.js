@@ -7,6 +7,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', 
 }).addTo(map);
 
 var sel = {};
+var selHol = {};
 var geoL = null;
 var allLayers = {};
 var centroids = {};
@@ -79,6 +80,9 @@ function ringCentroid(ring) {
 
 function styleFeature(feature) {
   var plz3 = feature.properties.plz;
+  if (selHol[plz3]) {
+    return { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
+  }
   if (preisklassenMode) {
     var pk = PREISKLASSEN[plz3.substring(0, 2)];
     if (pk) {
@@ -160,6 +164,7 @@ function togglePLZ(plz3) {
   }
   if (sel[plz3]) {
     delete sel[plz3];
+    delete selHol[plz3];
   } else {
     sel[plz3] = true;
   }
@@ -354,6 +359,7 @@ function multiUmkreisLoeschen() {
 
 function auswahlLoeschen() {
   sel = {};
+  selHol = {};
   refreshAll();
   updateSidebar();
 }
@@ -440,6 +446,19 @@ function cityPopThreshold(zoom) {
   return 0;
 }
 
+function isNRWArea(lat, lon) {
+  return lat >= 50.3 && lat <= 52.1 && lon >= 5.9 && lon <= 9.2;
+}
+
+function cityPopThresholdNRW(zoom) {
+  if (zoom <= 6) return 500000;
+  if (zoom === 7) return 250000;
+  if (zoom === 8) return 150000;
+  if (zoom === 9) return 75000;
+  if (zoom === 10) return 40000;
+  return 0;
+}
+
 var cityMinPop = 50000;
 var CITY_OPTIONS = [50000, 30000, 20000, 10000];
 
@@ -473,7 +492,11 @@ function updateCityLayer() {
   }
   STAEDTE.forEach(function (c) {
     var lat = c[0], lon = c[1], name = c[2], pop = c[3];
-    if (pop < threshold) return;
+    var thr = threshold;
+    if (isNRWArea(lat, lon)) {
+      thr = Math.max(thr, cityPopThresholdNRW(zoom));
+    }
+    if (pop < thr) return;
     L.circleMarker([lat, lon], {
       radius: pop > 500000 ? 5 : pop > 100000 ? 4 : 3,
       color: "#2c3e50",
@@ -657,6 +680,7 @@ function selectHolidayPLZ(dk){
     var st=PLZ3_STAAT[p3];
     if(states==='all'||(st&&states.indexOf(st)>=0)){
       sel[p3]=true;
+      selHol[p3]=true;
       refreshLayer(p3);
     }
   });
