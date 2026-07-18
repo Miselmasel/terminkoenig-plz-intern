@@ -18,6 +18,11 @@ var multiCircles = L.layerGroup().addTo(map);
 var GEO_URL =
   "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
 var SEL_COLOR = "#e4d4ec";
+var plzDB = null;
+fetch('https://raw.githubusercontent.com/Miselmasel/PLZ-Datenbank/main/webtools/plz-umkreissuche/data/plz_umkreisdaten.json')
+  .then(function(r){return r.json();})
+  .then(function(d){plzDB=d;})
+  .catch(function(e){console.error('PLZ-DB Ladefehler:',e);});
 
 var preisklassenMode = false;
 var PREISKLASSEN = {
@@ -353,13 +358,39 @@ function auswahlLoeschen() {
   updateSidebar();
 }
 
+function haversine(lat1, lon1, lat2, lon2) {
+  var R = 6371;
+  var dLat = (lat2 - lat1) * Math.PI / 180;
+  var dLon = (lon2 - lon1) * Math.PI / 180;
+  var a = Math.sin(dLat/2)*Math.sin(dLat/2) +
+          Math.cos(lat1*Math.PI/180)*Math.cos(lat2*Math.PI/180)*
+          Math.sin(dLon/2)*Math.sin(dLon/2);
+  return Math.round(R*2*Math.atan2(Math.sqrt(a),Math.sqrt(1-a))*10)/10;
+}
+
 function exportCSV() {
   var keys = Object.keys(sel).sort();
-  var lines = ["PLZ_Prefix"];
-  keys.forEach(function (p) {
-    lines.push(p + "xx");
+  var lines = ["PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Entfernung_km"];
+  keys.forEach(function(prefix) {
+    var refs = centroids[prefix] || [];
+    var refLat = 0, refLon = 0;
+    refs.forEach(function(c){refLat+=c.lat; refLon+=c.lng;});
+    if (refs.length > 0) { refLat/=refs.length; refLon/=refs.length; }
+    if (plzDB) {
+      var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
+      if (matches.length === 0) {
+        lines.push(prefix+'xx;;;;;');
+      } else {
+        matches.forEach(function(e){
+          var dist = refs.length > 0 ? String(haversine(refLat,refLon,e.lat,e.lon)).replace('.',',') : '';
+          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,e.einwohner,dist].join(';'));
+        });
+      }
+    } else {
+      lines.push(prefix+'xx;(DB nicht geladen);;;;');
+    }
   });
-  dlFile("auswahl.csv", lines.join("\n"), "text/csv");
+  dlFile("auswahl.csv", "﻿"+lines.join("\n"), "text/csv");
 }
 
 function exportJSON() {
