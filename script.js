@@ -569,3 +569,97 @@ L.marker([53.2308, 7.4528], {
   .on("click", function () {
     window.open("https://www.terminkoenig.de/", "_blank");
   });
+
+// ===== Kalender =====
+var PLZ3_STAAT={"010":"SN","011":"SN","012":"SN","013":"SN","014":"SN","015":"SN","016":"SN","017":"SN","018":"SN","019":"BB","026":"SN","027":"SN","028":"SN","029":"SN","030":"BB","031":"BB","032":"BB","041":"SN","042":"SN","043":"SN","044":"SN","045":"SN","046":"TH","047":"SN","048":"SN","049":"BB","061":"ST","062":"ST","063":"ST","064":"ST","065":"ST","066":"ST","067":"ST","068":"ST","069":"ST","073":"TH","074":"TH","075":"TH","076":"TH","077":"TH","078":"TH","079":"TH","080":"SN","081":"SN","082":"SN","083":"SN","084":"SN","085":"SN","086":"SN","091":"SN","092":"SN","093":"SN","094":"SN","095":"SN","096":"SN","101":"BE","102":"BE","103":"BE","104":"BE","105":"BE","106":"BE","107":"BE","108":"BE","109":"BE","120":"BE","121":"BE","122":"BE","123":"BE","124":"BE","125":"BE","126":"BE","130":"BE","131":"BE","133":"BE","134":"BE","135":"BE","136":"BE","140":"BE","141":"BE","144":"BB","145":"BB","146":"BB","147":"BB","148":"BB","149":"BB","152":"BB","153":"BB","155":"BB","157":"BB","158":"BB","159":"BB","162":"BB","163":"BB","165":"BB","167":"BB","168":"BB","169":"BB","170":"MV","171":"MV","172":"MV","173":"MV","174":"MV","175":"MV","180":"MV","181":"MV","182":"MV","183":"MV","184":"MV","185":"MV","186":"MV","190":"MV","192":"MV","193":"MV","194":"MV","200":"HH","201":"HH","202":"HH","203":"HH","204":"HH","205":"HH","210":"HH","211":"HH","212":"NI","213":"NI","214":"NI","215":"SH","216":"NI","217":"NI","220":"HH","221":"HH","222":"HH","223":"HH","224":"HH","225":"HH","226":"HH","227":"HH","228":"SH","229":"SH","235":"SH","236":"SH","237":"SH","238":"SH","239":"MV","241":"SH","242":"SH","243":"SH","244":"SH","245":"SH","246":"SH","247":"SH","248":"SH","249":"SH","253":"SH","254":"SH","255":"SH","256":"SH","257":"SH","258":"SH","259":"SH","261":"NI","262":"NI","263":"NI","264":"NI","265":"NI","266":"NI","267":"NI","268":"NI","269":"NI","272":"NI","273":"NI","274":"NI","275":"HB","276":"NI","277":"NI","278":"NI","281":"HB","282":"HB","283":"HB","287":"HB","288":"NI","292":"NI","293":"NI","294":"NI","295":"NI","296":"NI","301":"NI","304":"NI","305":"NI","306":"NI","308":"NI","309":"NI","310":"NI","311":"NI","312":"NI","313":"NI","315":"NI","316":"NI","317":"NI","318":"NI","320":"NW","321":"NW","322":"NW","323":"NW","324":"NW","325":"NW","326":"NW","327":"NW","328":"NW","330":"NW","331":"NW","333":"NW","334":"NW","336":"NW","337":"NW","338":"NW","341":"HE","342":"HE","343":"HE","344":"HE","345":"HE","346":"HE","350":"HE","351":"HE","352":"HE","353":"HE","354":"HE","355":"HE","356":"HE","357":"HE","360":"HE","361":"HE","362":"HE","363":"HE","364":"TH","370":"NI","371":"NI","372":"HE","373":"TH","374":"NI","375":"NI","376":"NI","381":"NI","382":"NI","383":"NI","384":"NI","385":"NI","386":"NI","387":"NI","388":"ST","391":"ST","392":"ST","393":"ST","394":"ST","395":"ST","396":"ST","402":"NW","404":"NW","405":"NW","406":"NW","407":"NW","408":"NW","410":"NW","411":"NW","412":"NW","413":"NW","414":"NW","415":"NW","417":"NW","418":"NW","421":"NW","422":"NW","423":"NW","424":"NW","425":"NW","426":"NW","427":"NW","428":"NW","429":"NW","441":"NW","442":"NW","443":"NW","445":"NW","446":"NW","447":"NW","448":"NW","451":"NW","452":"NW","453":"NW","454":"NW","455":"NW","456":"NW","457":"NW","458":"NW","459":"NW","460":"NW","461":"NW","462":"NW","463":"NW","464":"NW","465":"NW","470":"NW","471":"NW","472":"NW","474":"NW","475":"NW","476":"NW","477":"NW","478":"NW","479":"NW","481":"NW","482":"NW","483":"NW","484":"NW","485":"NI","486":"NW","487":"NW","490":"NI","491":"NI","492":"NI","493":"NI","494":"NI","495":"NI","496":"NI","497":"NI","498":"NI","501":"NW","502":"NW","503":"NW","506":"NW","507":"NW","508":"NW","509":"NW","510":"NW","511":"NW","513":"NW","514":"NW","515":"NW","516":"NW","517":"NW","520":"NW","521":"NW","522":"NW","523":"NW","524":"NW","525":"NW","531":"NW","532":"NW","533":"NW","534":"RP","535":"RP","536":"NW","537":"NW","538":"NW","539":"NW","542":"RP","543":"RP","544":"RP","545":"RP","546":"RP","551":"RP","552":"RP","554":"RP","555":"RP","556":"RP","557":"RP","560":"RP","561":"RP","562":"RP","563":"RP","564":"RP","565":"RP","566":"RP","567":"RP","568":"RP","570":"NW","572":"NW","573":"NW","574":"NW","575":"RP","576":"RP","580":"NW","581":"NW","582":"NW","583":"NW","584":"NW","585":"NW","586":"NW","587":"NW","588":"NW","590":"NW","591":"NW","592":"NW","593":"NW","594":"NW","595":"NW","596":"NW","597":"NW","598":"NW","599":"NW","603":"HE","604":"HE","605":"HE","611":"HE","612":"HE","613":"HE","614":"HE","630":"HE","631":"HE","632":"HE","633":"HE","634":"HE","635":"HE","636":"HE","637":"BY","638":"BY","639":"BY","642":"HE","643":"HE","644":"HE","645":"HE","646":"HE","647":"HE","648":"HE","651":"HE","652":"HE","653":"HE","654":"HE","655":"HE","656":"HE","657":"HE","658":"HE","659":"HE","661":"SL","662":"SL","663":"SL","664":"SL","665":"SL","666":"SL","667":"SL","668":"RP","669":"RP","670":"RP","671":"RP","672":"RP","673":"RP","674":"RP","675":"RP","676":"RP","677":"RP","678":"RP","681":"BW","682":"BW","683":"BW","685":"BW","686":"HE","687":"BW","688":"BW","691":"BW","692":"BW","694":"BW","695":"HE","701":"BW","703":"BW","704":"BW","705":"BW","706":"BW","707":"BW","708":"BW","710":"BW","711":"BW","712":"BW","713":"BW","714":"BW","715":"BW","716":"BW","717":"BW","720":"BW","721":"BW","722":"BW","723":"BW","724":"BW","725":"BW","726":"BW","727":"BW","728":"BW","730":"BW","731":"BW","732":"BW","733":"BW","734":"BW","735":"BW","736":"BW","737":"BW","740":"BW","741":"BW","742":"BW","743":"BW","744":"BW","745":"BW","746":"BW","747":"BW","748":"BW","749":"BW","750":"BW","751":"BW","752":"BW","753":"BW","754":"BW","761":"BW","762":"BW","763":"BW","764":"BW","765":"BW","766":"BW","767":"RP","768":"RP","776":"BW","777":"BW","778":"BW","779":"BW","780":"BW","781":"BW","782":"BW","783":"BW","784":"BW","785":"BW","786":"BW","787":"BW","790":"BW","791":"BW","792":"BW","793":"BW","794":"BW","795":"BW","796":"BW","797":"BW","798":"BW","803":"BY","804":"BY","805":"BY","806":"BY","807":"BY","808":"BY","809":"BY","812":"BY","813":"BY","814":"BY","815":"BY","816":"BY","817":"BY","818":"BY","819":"BY","820":"BY","821":"BY","822":"BY","823":"BY","824":"BY","825":"BY","830":"BY","831":"BY","832":"BY","833":"BY","834":"BY","835":"BY","836":"BY","837":"BY","840":"BY","841":"BY","843":"BY","844":"BY","845":"BY","850":"BY","851":"BY","852":"BY","853":"BY","854":"BY","855":"BY","856":"BY","857":"BY","861":"BY","863":"BY","864":"BY","865":"BY","866":"BY","867":"BY","868":"BY","869":"BY","874":"BY","875":"BY","876":"BY","877":"BY","880":"BW","881":"BY","882":"BW","883":"BW","884":"BW","885":"BW","886":"BW","887":"BW","890":"BW","891":"BW","892":"BY","893":"BY","894":"BY","895":"BW","896":"BW","904":"BY","905":"BY","906":"BY","907":"BY","910":"BY","911":"BY","912":"BY","913":"BY","914":"BY","915":"BY","916":"BY","917":"BY","918":"BY","922":"BY","923":"BY","924":"BY","925":"BY","926":"BY","927":"BY","930":"BY","931":"BY","933":"BY","934":"BY","940":"BY","941":"BY","942":"BY","943":"BY","944":"BY","945":"BY","950":"BY","951":"BY","952":"BY","953":"BY","954":"BY","955":"BY","956":"BY","957":"BY","960":"BY","961":"BY","962":"BY","963":"BY","964":"BY","965":"TH","970":"BY","971":"BY","972":"BY","973":"BY","974":"BY","975":"BY","976":"BY","977":"BY","978":"BY","979":"BW","985":"TH","986":"TH","987":"TH","990":"TH","991":"TH","993":"TH","994":"TH","995":"TH","996":"TH","997":"TH","998":"TH","999":"TH"};
+
+var calYear=new Date().getFullYear(), calMonth=new Date().getMonth();
+
+function dateKey(d){
+  return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')+'-'+String(d.getDate()).padStart(2,'0');
+}
+function calEaster(y){
+  var a=y%19,b=Math.floor(y/100),c=y%100,d=Math.floor(b/4),e=b%4,
+      f=Math.floor((b+8)/25),g=Math.floor((b-f+1)/3),
+      h=(19*a+b-d-g+15)%30,i=Math.floor(c/4),k=c%4,
+      l=(32+2*e+2*i-h-k)%7,m=Math.floor((a+11*h+22*l)/451);
+  return new Date(y,Math.floor((h+l-7*m+114)/31)-1,((h+l-7*m+114)%31)+1);
+}
+function calAddDays(d,n){var r=new Date(d);r.setDate(r.getDate()+n);return r;}
+function calBussBettag(y){var d=new Date(y,10,22);while(d.getDay()!==3)d.setDate(d.getDate()-1);return d;}
+function calGetHolidays(y){
+  var e=calEaster(y);
+  var h=[
+    {d:new Date(y,0,1),n:'Neujahr',s:'all'},
+    {d:new Date(y,0,6),n:'Heilige Drei Könige',s:['BW','BY','ST']},
+    {d:new Date(y,2,8),n:'Frauentag',s:['BE','MV']},
+    {d:calAddDays(e,-2),n:'Karfreitag',s:'all'},
+    {d:calAddDays(e,0),n:'Ostersonntag',s:['BB']},
+    {d:calAddDays(e,1),n:'Ostermontag',s:'all'},
+    {d:new Date(y,4,1),n:'Tag der Arbeit',s:'all'},
+    {d:calAddDays(e,39),n:'Christi Himmelfahrt',s:'all'},
+    {d:calAddDays(e,49),n:'Pfingstsonntag',s:['BB']},
+    {d:calAddDays(e,50),n:'Pfingstmontag',s:'all'},
+    {d:calAddDays(e,60),n:'Fronleichnam',s:['BW','BY','HE','NW','RP','SL']},
+    {d:new Date(y,7,15),n:'Mariä Himmelfahrt',s:['BY','SL']},
+    {d:new Date(y,8,20),n:'Weltkindertag',s:['TH']},
+    {d:new Date(y,9,3),n:'Tag der Deutschen Einheit',s:'all'},
+    {d:new Date(y,9,31),n:'Reformationstag',s:['BB','HB','HH','MV','NI','SN','ST','SH','TH']},
+    {d:new Date(y,10,1),n:'Allerheiligen',s:['BW','BY','NW','RP','SL']},
+    {d:calBussBettag(y),n:'Buß- und Bettag',s:['SN']},
+    {d:new Date(y,11,25),n:'1. Weihnachtstag',s:'all'},
+    {d:new Date(y,11,26),n:'2. Weihnachtstag',s:'all'}
+  ];
+  var lk={};
+  h.forEach(function(x){lk[dateKey(x.d)]={n:x.n,s:x.s};});
+  return lk;
+}
+function renderCalendar(){
+  var el=document.getElementById('cal');
+  if(!el)return;
+  var today=new Date();
+  var hols=calGetHolidays(calYear);
+  var MON=['Januar','Februar','März','April','Mai','Juni','Juli','August','September','Oktober','November','Dezember'];
+  var DOW=['Mo','Di','Mi','Do','Fr','Sa','So'];
+  var html='<div class="cal-nav"><button onclick="calPrev()">&#8249;</button><span>'+MON[calMonth]+' '+calYear+'</span><button onclick="calNext()">&#8250;</button></div>';
+  html+='<table class="cal-grid"><tr>';
+  DOW.forEach(function(d){html+='<th>'+d+'</th>';});
+  html+='</tr><tr>';
+  var first=new Date(calYear,calMonth,1).getDay();
+  var off=(first+6)%7;
+  for(var i=0;i<off;i++)html+='<td></td>';
+  var dim=new Date(calYear,calMonth+1,0).getDate();
+  for(var day=1;day<=dim;day++){
+    var col=(off+day-1)%7;
+    if(col===0&&day>1)html+='</tr><tr>';
+    var dk=dateKey(new Date(calYear,calMonth,day));
+    var isToday=(calYear===today.getFullYear()&&calMonth===today.getMonth()&&day===today.getDate());
+    var hol=hols[dk];
+    var cls=(isToday?'cal-today ':'')+(hol?'cal-fei':'');
+    if(hol){
+      html+='<td class="'+cls.trim()+'" title="'+hol.n+'" onclick="selectHolidayPLZ(\''+dk+'\')">'+day+'</td>';
+    }else{
+      html+='<td'+(cls?' class="'+cls.trim()+'"':'')+'>'+day+'</td>';
+    }
+  }
+  html+='</tr></table>';
+  el.innerHTML=html;
+}
+function calPrev(){if(--calMonth<0){calMonth=11;calYear--;}renderCalendar();}
+function calNext(){if(++calMonth>11){calMonth=0;calYear++;}renderCalendar();}
+function selectHolidayPLZ(dk){
+  var y=parseInt(dk);
+  var hols=calGetHolidays(y);
+  var hol=hols[dk];
+  if(!hol)return;
+  var states=hol.s;
+  Object.keys(allLayers).forEach(function(p3){
+    var st=PLZ3_STAAT[p3];
+    if(states==='all'||(st&&states.indexOf(st)>=0)){
+      sel[p3]=true;
+      refreshLayer(p3);
+    }
+  });
+  updateSidebar();
+}
+renderCalendar();
