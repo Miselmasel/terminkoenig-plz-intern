@@ -275,6 +275,11 @@ function multiUmkreisPunkte() {
 
 function multiUmkreis() {
   var points = multiUmkreisPunkte();
+  var countEl = document.getElementById("mpCount");
+  if (countEl) {
+    countEl.textContent = points.length;
+    countEl.style.color = points.length > 5 ? "#e74c3c" : "";
+  }
   if (points.length === 0) {
     alert(
       "Bitte zuerst Gebiete anklicken (Auswahl) oder Punkte per Klick setzen aktivieren."
@@ -287,8 +292,6 @@ function multiUmkreis() {
     );
     return;
   }
-  var countEl = document.getElementById("mpCount");
-  if (countEl) countEl.textContent = points.length;
   var km = parseInt(document.getElementById("mrs").value);
   multiCircles.clearLayers();
   points.forEach(function (p) {
