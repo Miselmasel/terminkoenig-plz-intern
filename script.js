@@ -375,28 +375,31 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 function exportCSV() {
+  var year = new Date().getFullYear();
   var keys = Object.keys(sel).sort();
-  var lines = ["PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Entfernung_km"];
+  var lines = ["﻿PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Entfernung_km;Feiertage"];
   keys.forEach(function(prefix) {
     var refs = centroids[prefix] || [];
     var refLat = 0, refLon = 0;
     refs.forEach(function(c){refLat+=c.lat; refLon+=c.lng;});
     if (refs.length > 0) { refLat/=refs.length; refLon/=refs.length; }
+    var state = PLZ3_STAAT ? PLZ3_STAAT[prefix] : undefined;
+    var holStr = (typeof getHolidaysForState === 'function') ? getHolidaysForState(state, year) : '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        lines.push(prefix+'xx;;;;;');
+        lines.push(prefix+'xx;;;;;'+';'+holStr);
       } else {
         matches.forEach(function(e){
           var dist = refs.length > 0 ? String(haversine(refLat,refLon,e.lat,e.lon)).replace('.',',') : '';
-          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,e.einwohner,dist].join(';'));
+          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,e.einwohner,dist,holStr].join(';'));
         });
       }
     } else {
-      lines.push(prefix+'xx;(DB nicht geladen);;;;');
+      lines.push(prefix+'xx;(DB nicht geladen);;;;'+';'+holStr);
     }
   });
-  dlFile("auswahl.csv", "﻿"+lines.join("\n"), "text/csv");
+  dlFile("auswahl.csv", lines.join("\n"), "text/csv");
 }
 
 function exportJSON() {
@@ -662,7 +665,7 @@ function renderCalendar(){
     if(hol){
       html+='<td class="'+cls.trim()+'" title="'+hol.n+'" onclick="selectHolidayPLZ(\''+dk+'\')">'+day+'</td>';
     }else{
-      html+='<td'+(cls?' class="'+cls.trim()+'"':'')+'>'+day+'</td>';
+      html+='<td'+(cls?' class="'+cls.trim()+'"':'')+' onclick="clearHolidayPLZ()">'+day+'</td>';
     }
   }
   html+='</tr></table>';
@@ -685,5 +688,25 @@ function selectHolidayPLZ(dk){
     }
   });
   updateSidebar();
+}
+function clearHolidayPLZ(){
+  Object.keys(selHol).forEach(function(p3){
+    delete sel[p3];
+    delete selHol[p3];
+    refreshLayer(p3);
+  });
+  updateSidebar();
+}
+function getHolidaysForState(state,year){
+  var hols=calGetHolidays(year);
+  var result=[];
+  Object.keys(hols).sort().forEach(function(dk){
+    var h=hols[dk];
+    if(h.s==='all'||(state&&Array.isArray(h.s)&&h.s.indexOf(state)>=0)){
+      var p=dk.split('-');
+      result.push(p[2]+'.'+p[1]+'.:'+h.n);
+    }
+  });
+  return result.join('; ');
 }
 renderCalendar();

@@ -131,7 +131,8 @@ select {
 .cal-nav span { font-weight:bold;font-size:12px; }
 .cal-grid { width:100%;border-collapse:collapse;font-size:10px;text-align:center; }
 .cal-grid th { padding:2px 0;color:#888;font-weight:normal; }
-.cal-grid td { padding:2px 1px;border-radius:2px; }
+.cal-grid td { padding:2px 1px;border-radius:2px;cursor:pointer; }
+.cal-grid td:not(.cal-fei):hover { background:#f3eaf8; }
 .cal-today { background:#e4d4ec;font-weight:bold; }
 .cal-fei { background:#e74c3c !important;color:#fff !important;cursor:pointer;border-radius:3px; }
 .cal-fei:hover { background:#c0392b !important; }
