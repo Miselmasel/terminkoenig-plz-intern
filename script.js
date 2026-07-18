@@ -264,16 +264,26 @@ function updateMultiList() {
   }
 }
 
+// Nutzt die per Klick gesetzten Punkte, falls vorhanden - sonst die aktuell
+// ausgewaehlten Gebiete (Mittelpunkt) als Ausgangspunkte.
+function multiUmkreisPunkte() {
+  if (multiPoints.length > 0) return multiPoints;
+  return Object.keys(sel).map(function (p) {
+    return { plz3: p, center: allLayers[p].getBounds().getCenter() };
+  });
+}
+
 function multiUmkreis() {
-  if (multiPoints.length === 0) {
+  var points = multiUmkreisPunkte();
+  if (points.length === 0) {
     alert(
-      "Bitte zuerst Punkte auf der Karte anklicken (Punkte per Klick setzen aktivieren)."
+      "Bitte zuerst Gebiete anklicken (Auswahl) oder Punkte per Klick setzen aktivieren."
     );
     return;
   }
   var km = parseInt(document.getElementById("mrs").value);
   multiCircles.clearLayers();
-  multiPoints.forEach(function (p) {
+  points.forEach(function (p) {
     L.circle(p.center, {
       radius: km * 1000,
       color: "#8e44ad",
