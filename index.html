@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>PLZ Karte</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+<div id="map"></div>
+<div id="sb">
+  <h2>PLZ Karte</h2>
+
+  <div class="s">
+    <div class="tr">
+      <h3 style="margin:0">AUSWAHL</h3>
+    </div>
+    <div style="font-size:11px;color:#666;margin-top:4px;">
+      Klick auf Gebiet = markieren / abwählen
+    </div>
+  </div>
+
+  <div class="s">
+    <h3>BUNDESLÄNDER</h3>
+    <button class="bk" id="blToggleBtn" onclick="toggleBundeslaender()">Bundesländer anzeigen</button>
+  </div>
+
+  <div class="s">
+    <h3>STÄDTE</h3>
+    <div style="font-size:11px;color:#666;margin-bottom:4px;">
+      Mindestgröße - je näher man reinzoomt, desto mehr kleinere Orte erscheinen zusätzlich
+    </div>
+    <select id="cityMinPop" onchange="onCityMinPopChange()">
+      <option value="50000" selected>größer als 50.000</option>
+      <option value="30000">größer als 30.000</option>
+      <option value="20000">größer als 20.000</option>
+      <option value="10000">größer als 10.000</option>
+    </select>
+  </div>
+
+  <div class="s">
+    <h3>SUCHE</h3>
+    <input type="text" id="si" placeholder="PLZ (3-5-stellig) z.B. 10115">
+    <button class="bb" onclick="zen()">Zentrieren</button>
+  </div>
+
+  <div class="s">
+    <h3>UMKREISSUCHE</h3>
+    <div style="font-size:11px;color:#666;margin-bottom:4px;">
+      Ausgangspunkt: PLZ oben eingeben (je vollständiger, desto genauer) oder Gebiet anklicken
+    </div>
+    <div class="tr">
+      <span>Ausgangspunkt:</span>
+      <span id="ap">- keine -</span>
+    </div>
+    <select id="rs">
+      <option>10 km</option>
+      <option>20 km</option>
+      <option>30 km</option>
+      <option>40 km</option>
+      <option>50 km</option>
+      <option>75 km</option>
+      <option>100 km</option>
+    </select>
+    <button class="bg" onclick="umkreis()">Umkreis auswaehlen</button>
+    <button class="br" onclick="umkreisLoeschen()">Umkreis loeschen</button>
+  </div>
+
+  <div class="s">
+    <h3>MULTI-UMKREISSUCHE</h3>
+    <div class="tr">
+      <span>Punkte (max. 5):</span>
+      <span id="mpCount">0</span>
+    </div>
+    <div id="mpList" style="font-size:11px;max-height:80px;overflow-y:auto;margin:4px 0;"></div>
+    <button class="bk" id="mpToggleBtn" onclick="toggleMultiMode()">Punkte per Klick setzen</button>
+    <select id="mrs">
+      <option>10 km</option>
+      <option>20 km</option>
+      <option>30 km</option>
+      <option>40 km</option>
+      <option>50 km</option>
+      <option>75 km</option>
+      <option>100 km</option>
+    </select>
+    <button class="bg" onclick="multiUmkreis()">Umkreise auswaehlen</button>
+    <button class="br" onclick="multiUmkreisLoeschen()">Punkte loeschen</button>
+  </div>
+
+  <div class="s">
+    <h3 id="ac"><span>AUSWAHL (</span><span>0</span><span>)</span></h3>
+    <div id="al"></div>
+  </div>
+
+  <div class="s">
+    <h3>TEXTAUSGABE</h3>
+    <div id="ta" class="ta"></div>
+    <button class="bb" onclick="exportCSV()">Export CSV</button>
+    <button class="bb" onclick="exportJSON()">Export JSON</button>
+    <button class="br" onclick="auswahlLoeschen()">Auswahl loeschen</button>
+  </div>
+</div>
+
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>
