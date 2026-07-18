@@ -8,7 +8,6 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', 
 
 var sel = {};
 var geoL = null;
-var circL = null;
 var allLayers = {};
 var centroids = {};
 var labelGroup = L.layerGroup().addTo(map);
@@ -19,63 +18,6 @@ var multiCircles = L.layerGroup().addTo(map);
 var GEO_URL =
   "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
 var SEL_COLOR = "#3498db";
-
-var PLZ_GEOCOORD_URL =
-  "https://raw.githubusercontent.com/WZBSocialScienceCenter/plz_geocoord/master/plz_geocoord.csv";
-var plzCoords = {};
-
-fetch(PLZ_GEOCOORD_URL)
-  .then(function (r) {
-    return r.text();
-  })
-  .then(function (text) {
-    var lines = text.split("\n");
-    for (var i = 1; i < lines.length; i++) {
-      var line = lines[i].trim();
-      if (!line) continue;
-      var parts = line.split(",");
-      if (parts.length < 3) continue;
-      var plz = parts[0].trim();
-      var lat = parseFloat(parts[1]);
-      var lng = parseFloat(parts[2]);
-      if (plz && !isNaN(lat) && !isNaN(lng)) plzCoords[plz] = { lat: lat, lng: lng };
-    }
-  })
-  .catch(function (e) {
-    console.error("PLZ-Koordinaten Fehler:", e);
-  });
-
-// Sucht den genauesten verfuegbaren Ausgangspunkt: exakte 5-stellige PLZ,
-// sonst Mittelpunkt aller 5-stelligen PLZ mit gleichem 4-stelligem Praefix,
-// sonst Mittelpunkt des 3-stelligen PLZ-Gebiets (Polygon-Bounds).
-function findAnchorPoint(digits) {
-  if (digits.length >= 5) {
-    var plz5 = digits.substring(0, 5);
-    if (plzCoords[plz5]) {
-      return { latlng: L.latLng(plzCoords[plz5].lat, plzCoords[plz5].lng), label: plz5 };
-    }
-  }
-  if (digits.length >= 4) {
-    var prefix4 = digits.substring(0, 4);
-    var sLat = 0, sLng = 0, n = 0;
-    Object.keys(plzCoords).forEach(function (k) {
-      if (k.indexOf(prefix4) === 0) {
-        sLat += plzCoords[k].lat;
-        sLng += plzCoords[k].lng;
-        n++;
-      }
-    });
-    if (n > 0) {
-      return { latlng: L.latLng(sLat / n, sLng / n), label: prefix4 + "x" };
-    }
-  }
-  var prefix3 = digits.substring(0, 3);
-  var layer = allLayers[prefix3];
-  if (layer) {
-    return { latlng: layer.getBounds().getCenter(), label: prefix3 + "xx" };
-  }
-  return null;
-}
 
 // Liefert einen Mittelpunkt pro einzelner Teilflaeche - bei MultiPolygon-PLZ
 // (z.B. getrennte Exklaven wie Leer bei 267) bekommt so jede Teilflaeche
@@ -199,11 +141,9 @@ function togglePLZ(plz3) {
   refreshLayer(plz3);
   updateSidebar();
 
-  // PLZ ins Suchfeld und als Ausgangspunkt für Umkreissuche setzen
+  // PLZ ins Suchfeld setzen
   var si = document.getElementById("si");
-  var ap = document.getElementById("ap");
   if (si) si.value = plz3;
-  if (ap) ap.textContent = plz3 + "xx";
 }
 
 function refreshLayer(plz3) {
@@ -261,54 +201,6 @@ function zen() {
 function zenOn(prefix) {
   var layer = allLayers[prefix];
   if (layer) map.fitBounds(layer.getBounds());
-}
-
-function umkreis() {
-  var v = document.getElementById("si").value.trim();
-  if (!v) {
-    alert("Bitte PLZ eingeben oder Polygon anklicken");
-    return;
-  }
-  var digits = v.replace(/\D/g, "");
-  var anchor = findAnchorPoint(digits);
-  if (!anchor) {
-    alert("PLZ nicht gefunden: " + digits);
-    return;
-  }
-  var center = anchor.latlng;
-  var km = parseInt(document.getElementById("rs").value);
-  var radius = km * 1000;
-  if (circL) map.removeLayer(circL);
-  circL = L.circle(center, {
-    radius: radius,
-    color: "#e74c3c",
-    fillOpacity: 0.05
-  }).addTo(map);
-
-  var circlePoly = turf.circle([center.lng, center.lat], km, {
-    units: "kilometers"
-  });
-
-  Object.keys(allLayers).forEach(function (p) {
-    if (sel[p]) return;
-    var layerGeoJSON = allLayers[p].toGeoJSON();
-    if (turf.booleanIntersects(circlePoly, layerGeoJSON)) {
-      sel[p] = true;
-      refreshLayer(p);
-    }
-  });
-  updateSidebar();
-  var ap = document.getElementById("ap");
-  if (ap) ap.textContent = anchor.label;
-}
-
-function umkreisLoeschen() {
-  if (circL) {
-    map.removeLayer(circL);
-    circL = null;
-  }
-  var ap = document.getElementById("ap");
-  if (ap) ap.textContent = "- keine -";
 }
 
 function toggleMultiMode() {
