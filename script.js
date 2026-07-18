@@ -242,9 +242,7 @@ function toggleMultiMode() {
   multiMode = !multiMode;
   var btn = document.getElementById("mpToggleBtn");
   if (btn) {
-    btn.textContent = multiMode
-      ? "Punkte setzen: AN (Karte anklicken)"
-      : "Punkte per Klick setzen";
+    btn.textContent = multiMode ? "Klick aktiv ✓" : "Klick setzen";
     btn.style.background = multiMode ? "#27ae60" : "";
   }
 }
