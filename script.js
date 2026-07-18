@@ -17,7 +17,7 @@ var multiCircles = L.layerGroup().addTo(map);
 
 var GEO_URL =
   "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
-var SEL_COLOR = "#3498db";
+var SEL_COLOR = "#e4d4ec";
 
 // Liefert einen Mittelpunkt pro einzelner Teilflaeche - bei MultiPolygon-PLZ
 // (z.B. getrennte Exklaven wie Leer bei 267) bekommt so jede Teilflaeche
@@ -61,7 +61,7 @@ function styleFeature(feature) {
     return {
       fillColor: SEL_COLOR,
       fillOpacity: 0.5,
-      color: "#1a6ea8",
+      color: "#642d7b",
       weight: 1.5
     };
   }
@@ -297,7 +297,7 @@ function multiUmkreis() {
   points.forEach(function (p) {
     L.circle(p.center, {
       radius: km * 1000,
-      color: "#8e44ad",
+      color: "#642d7b",
       fillOpacity: 0.05
     }).addTo(multiCircles);
 
@@ -496,3 +496,20 @@ function toggleBundeslaender() {
     }
   }
 }
+
+// ===== Terminkoenig-Logo bei Leer, verlinkt auf die Terminkoenig-Homepage =====
+var terminkoenigIcon = L.icon({
+  iconUrl: "terminkoenig_logo.png",
+  iconSize: [110, 23],
+  iconAnchor: [55, 11],
+  className: "terminkoenig-logo-marker"
+});
+L.marker([53.2308, 7.4528], {
+  icon: terminkoenigIcon,
+  title: "Terminkönig",
+  zIndexOffset: 1000
+})
+  .addTo(map)
+  .on("click", function () {
+    window.open("https://www.terminkoenig.de/", "_blank");
+  });

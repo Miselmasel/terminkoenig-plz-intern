@@ -120,3 +120,7 @@ select {
   align-items: center;
   justify-content: space-between;
 }
+.terminkoenig-logo-marker {
+  cursor: pointer;
+  filter: drop-shadow(0 0 2px #fff) drop-shadow(0 0 2px #fff);
+}
