@@ -729,14 +729,8 @@ function loadLandkreise() {
     .then(function (r) { return r.json(); })
     .then(function (data) {
       lkLoaded = true;
-      data.features.forEach(function (f, i) {
+      data.features.forEach(function (f) {
         var name = f.properties.GEN || f.properties.NAME_3 || f.properties.name || "";
-        var poly = L.geoJSON(f, {
-          pane: "lkPane",
-          interactive: false, // Klicks gehen durch zur PLZ3-Ebene darunter
-          style: function () { return { fillOpacity: 0, color: "#555", weight: 1.4 }; }
-        });
-        poly.addTo(lkGroup);
         if (name) {
           try {
             var c = turf.centerOfMass(f);
