@@ -437,6 +437,54 @@ function exportJSON() {
   dlFile("auswahl.json", JSON.stringify(out, null, 2), "application/json");
 }
 
+var LEGAL_CONTENT = {
+  impressum: '<h2>Impressum</h2>' +
+    '<h3>Anbieter</h3>' +
+    '<p><strong>SE-Design – Schröder Onlinemarketing</strong><br>' +
+    'Liebigweg 6b<br>26810 Westoverledingen</p>' +
+    '<p>Tel: <a href="tel:01638989878">0163 8989878</a><br>' +
+    'E-Mail: <a href="mailto:info@plz-vertriebsplaner.de">info@plz-vertriebsplaner.de</a></p>' +
+    '<h3>Verantwortlich für den Inhalt</h3>' +
+    '<p>Manuel Schröder, SE-Design – Schröder Onlinemarketing</p>',
+
+  disclaimer: '<h2>Nutzungshinweis</h2>' +
+    '<p>Die <strong>Terminkönig PLZ-Karte</strong> ist ein exklusiv entwickeltes Tool und steht ausschließlich zur Nutzung durch:</p>' +
+    '<p><strong>Janneke Peters Vertriebslösungen / Terminkönig</strong><br>' +
+    'Kleiner Oldekamp 29<br>26789 Leer</p>' +
+    '<p>Tel: <a href="tel:049145430">0491 45430</a><br>' +
+    'E-Mail: <a href="mailto:janneke.peter@terminkoenig.de">janneke.peter@terminkoenig.de</a></p>' +
+    '<p>Jede unbefugte Nutzung, Vervielfältigung oder Weitergabe ist untersagt. Alle Rechte vorbehalten. ' +
+    'Die dargestellten Daten dienen ausschließlich der internen Vertriebsplanung.</p>',
+
+  quellen: '<h2>Datenquellen &amp; Lizenzen</h2>' +
+    '<h3>Kartendaten</h3>' +
+    '<p>© <a href="https://www.openstreetmap.org/copyright" target="_blank">OpenStreetMap</a>-Mitwirkende, ' +
+    'lizenziert unter <a href="https://opendatacommons.org/licenses/odbl/" target="_blank">ODbL</a></p>' +
+    '<h3>Kartenkacheln</h3>' +
+    '<p>© <a href="https://carto.com/attributions" target="_blank">CARTO</a> (light_nolabels)</p>' +
+    '<h3>Interaktive Karte</h3>' +
+    '<p><a href="https://leafletjs.com" target="_blank">Leaflet.js</a> v1.9.4 – ' +
+    '<a href="https://github.com/Leaflet/Leaflet/blob/main/LICENSE" target="_blank">BSD-2-Clause</a></p>' +
+    '<h3>Räumliche Analysen</h3>' +
+    '<p><a href="https://turfjs.org" target="_blank">Turf.js</a> v6 – ' +
+    '<a href="https://github.com/Turfjs/turf/blob/master/LICENSE" target="_blank">MIT</a></p>' +
+    '<h3>PLZ-Gebiete (3-stellig)</h3>' +
+    '<p>GeoJSON: <a href="https://gist.github.com/fegoa89/edcd647f95ac4d21e48cacafcc722314" target="_blank">fegoa89 / gist</a></p>' +
+    '<h3>PLZ-Ortsdatenbank</h3>' +
+    '<p><a href="https://github.com/Miselmasel/PLZ-Datenbank" target="_blank">Miselmasel/PLZ-Datenbank</a></p>' +
+    '<h3>Bundesland-Grenzen</h3>' +
+    '<p><a href="https://github.com/isellsoap/deutschlandGeoJSON" target="_blank">isellsoap/deutschlandGeoJSON</a> – ' +
+    '<a href="https://github.com/isellsoap/deutschlandGeoJSON/blob/main/LICENSE" target="_blank">MIT</a></p>'
+};
+
+function showLegal(type) {
+  document.getElementById('legal-content').innerHTML = LEGAL_CONTENT[type] || '';
+  document.getElementById('legal-overlay').classList.add('open');
+}
+function closeLegal() {
+  document.getElementById('legal-overlay').classList.remove('open');
+}
+
 function dlFile(name, content, type) {
   var a = document.createElement("a");
   a.href = "data:" + type + ";charset=utf-8," + encodeURIComponent(content);

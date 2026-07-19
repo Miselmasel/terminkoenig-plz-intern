@@ -110,6 +110,21 @@
     <h3>FEIERTAGE</h3>
     <div id="cal"></div>
   </div>
+
+  <div id="legal-footer">
+    <button class="legal-btn" onclick="showLegal('impressum')">Impressum</button>
+    <span class="legal-sep">·</span>
+    <button class="legal-btn" onclick="showLegal('disclaimer')">Nutzungshinweis</button>
+    <span class="legal-sep">·</span>
+    <button class="legal-btn" onclick="showLegal('quellen')">Quellen</button>
+  </div>
+</div>
+
+<div id="legal-overlay" onclick="closeLegal()">
+  <div id="legal-box" onclick="event.stopPropagation()">
+    <button id="legal-close" onclick="closeLegal()">✕</button>
+    <div id="legal-content"></div>
+  </div>
 </div>
 
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
