@@ -190,7 +190,12 @@ function refreshAll() {
 }
 
 function togglePreisklassen() {
-  preisklassenMode = document.getElementById("pkToggle").checked;
+  preisklassenMode = !preisklassenMode;
+  var btn = document.getElementById("pkToggleBtn");
+  if (btn) {
+    btn.style.background = preisklassenMode ? "#642d7b" : "";
+    btn.style.color = preisklassenMode ? "#fff" : "";
+  }
   refreshAll();
 }
 

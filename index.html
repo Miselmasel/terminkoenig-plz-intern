@@ -30,10 +30,7 @@
   </div>
 
   <div class="s">
-    <h3>PREISKLASSEN</h3>
-    <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:12px;margin-bottom:8px;">
-      <input type="checkbox" id="pkToggle" onchange="togglePreisklassen()"> Preisklassen anzeigen
-    </label>
+    <button class="bk" id="pkToggleBtn" onclick="togglePreisklassen()" style="margin-bottom:8px;">Preisklassen anzeigen</button>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;">
       <div class="lr"><span class="ld" style="background:#e74c3c"></span> Preisklasse 3</div>
       <div class="lr"><span class="ld" style="background:#2ecc71"></span> Preisklasse 1</div>
@@ -43,24 +40,16 @@
   </div>
 
   <div class="s">
-    <h3>SUCHE</h3>
     <div style="display:flex;align-items:center;gap:4px;">
-      <span style="font-size:11px;white-space:nowrap;">Suche:</span>
-      <input type="text" id="si" placeholder="PLZ" maxlength="5" style="flex:1;min-width:0;width:auto;margin:0;">
+      <input type="text" id="si" placeholder="PLZ suchen" maxlength="5" style="flex:1;min-width:0;width:auto;margin:0;">
       <button class="bb" onclick="zen()" style="width:auto;margin:0;padding:5px 8px;white-space:nowrap;">Suche</button>
     </div>
   </div>
 
   <div class="s">
-    <h3>UMKREISSUCHE</h3>
-    <div style="font-size:11px;color:#666;margin-bottom:4px;">per Klick gesetzte PLZ</div>
-    <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
-      <button class="bk" id="mpToggleBtn" onclick="toggleMultiMode()" style="flex:1;margin:0;white-space:nowrap;">Klick setzen</button>
-      <span style="font-size:11px;white-space:nowrap;">Punkte (<span id="mpCount">0</span>/5)</span>
-    </div>
-    <div id="mpList" style="font-size:11px;max-height:55px;overflow-y:auto;margin:2px 0;"></div>
-    <div style="display:flex;align-items:center;gap:4px;margin-top:3px;">
-      <select id="mrs" style="flex:1;min-width:0;margin:0;padding:4px 2px;">
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:4px;">
+      <h3 style="margin:0;flex-shrink:0;">UMKREISSUCHE</h3>
+      <select id="mrs" style="flex:1;min-width:0;margin:0;padding:3px 2px;font-size:11px;">
         <option>10 km</option>
         <option>20 km</option>
         <option>30 km</option>
@@ -69,9 +58,15 @@
         <option>75 km</option>
         <option>100 km</option>
       </select>
-      <button class="bg" onclick="multiUmkreis()" style="width:auto;margin:0;padding:5px 8px;">Suche</button>
-      <button class="br" onclick="multiUmkreisLoeschen()" style="width:auto;margin:0;padding:5px 8px;">Reset</button>
+      <button class="bg" onclick="multiUmkreis()" style="width:auto;margin:0;padding:4px 6px;white-space:nowrap;font-size:11px;">Suche</button>
+      <button class="br" onclick="multiUmkreisLoeschen()" style="width:auto;margin:0;padding:4px 6px;white-space:nowrap;font-size:11px;">Reset</button>
     </div>
+    <div style="font-size:11px;color:#666;margin-bottom:4px;">per Klick gesetzte PLZ</div>
+    <div style="display:flex;align-items:center;gap:4px;margin-bottom:3px;">
+      <button class="bk" id="mpToggleBtn" onclick="toggleMultiMode()" style="flex:1;margin:0;white-space:nowrap;">Klick setzen</button>
+      <span style="font-size:11px;white-space:nowrap;">Punkte (<span id="mpCount">0</span>/5)</span>
+    </div>
+    <div id="mpList" style="font-size:11px;max-height:55px;overflow-y:auto;margin:2px 0;"></div>
   </div>
 
   <div class="s">
