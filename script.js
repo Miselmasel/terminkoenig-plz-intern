@@ -995,12 +995,13 @@ function updateEigenePlzMarker() {
   if (val.length === 5 && plzDB) {
     var ep = plzDB.find(function(e){ return e.plz === val; });
     if (ep) {
-      eigenePlzLiveMarker = L.circleMarker([ep.lat, ep.lon], {
-        radius: 8, color: '#fff', weight: 2, fillColor: '#e74c3c', fillOpacity: 1
-      }).addTo(map);
-      eigenePlzLiveMarker.bindTooltip(ep.plz + ' / ' + ep.ort, {
-        permanent: true, direction: 'right', className: 'eigene-plz-tt'
-      }).openTooltip();
+      var icon = L.divIcon({
+        className: 'eigene-plz-marker',
+        html: '<div class="eigene-plz-dot"></div><div class="eigene-plz-label">' + ep.plz + ' / ' + ep.ort + '</div>',
+        iconAnchor: [8, 8]
+      });
+      eigenePlzLiveMarker = L.marker([ep.lat, ep.lon], { icon: icon, interactive: false }).addTo(map);
+      map.setView([ep.lat, ep.lon], Math.min(map.getZoom() + 3, 12));
     }
   }
 }

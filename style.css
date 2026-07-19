@@ -152,5 +152,6 @@ select {
 .cal-fei { background:#e74c3c !important;color:#fff !important;cursor:pointer;border-radius:3px; }
 .cal-fei:hover { background:#c0392b !important; }
 .cal-fei.cal-today { outline:2px solid #642d7b; }
-.eigene-plz-tt { background:#e74c3c !important; color:#fff !important; border:2px solid #fff !important; font-size:11px !important; font-weight:bold !important; white-space:nowrap !important; }
-.eigene-plz-tt::before { border-right-color:#e74c3c !important; }
+.eigene-plz-marker { background:transparent !important; border:none !important; }
+.eigene-plz-dot { width:16px; height:16px; background:#e74c3c; border:2.5px solid #fff; border-radius:50%; box-shadow:0 1px 4px rgba(0,0,0,.5); }
+.eigene-plz-label { position:absolute; left:20px; top:-1px; background:#e74c3c; color:#fff; font:bold 11px Arial,sans-serif; white-space:nowrap; padding:2px 6px; border-radius:3px; border:1.5px solid #fff; box-shadow:0 1px 3px rgba(0,0,0,.4); }
