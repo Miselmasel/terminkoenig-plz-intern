@@ -615,6 +615,7 @@ updateCityLayer();
 var BL_GEO_URL =
   "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/2_bundeslaender/4_niedrig.geo.json";
 var blGroup = L.layerGroup();
+var blLabelGroup = L.layerGroup();
 var blVisible = false;
 
 map.createPane("blPane");
@@ -626,43 +627,148 @@ function blColor(i) {
 }
 
 fetch(BL_GEO_URL)
-  .then(function (r) {
-    return r.json();
-  })
+  .then(function (r) { return r.json(); })
   .then(function (data) {
     data.features.forEach(function (f, i) {
       L.geoJSON(f, {
         pane: "blPane",
         interactive: false,
-        style: {
-          fillColor: blColor(i),
-          fillOpacity: 0.45,
-          color: "#888",
-          weight: 1
-        }
+        style: { fillColor: blColor(i), fillOpacity: 0.45, color: "#888", weight: 1 }
       }).addTo(blGroup);
+      try {
+        var name = f.properties.GEN || f.properties.name || "";
+        if (name) {
+          var c = turf.centerOfMass(f);
+          L.marker([c.geometry.coordinates[1], c.geometry.coordinates[0]], {
+            icon: L.divIcon({ className: "", html: '<div class="bl-label">' + name + "</div>", iconSize: null, iconAnchor: [0, 0] }),
+            interactive: false
+          }).addTo(blLabelGroup);
+        }
+      } catch (e) {}
     });
-    if (blVisible) blGroup.addTo(map);
+    if (blVisible) {
+      if (!map.hasLayer(blGroup)) blGroup.addTo(map);
+      if (!map.hasLayer(blLabelGroup)) blLabelGroup.addTo(map);
+    }
   })
-  .catch(function (e) {
-    console.error("Bundeslaender GeoJSON Fehler:", e);
-  });
+  .catch(function (e) { console.error("Bundeslaender GeoJSON Fehler:", e); });
+
+function _hideBL() {
+  blVisible = false;
+  if (map.hasLayer(blGroup)) map.removeLayer(blGroup);
+  if (map.hasLayer(blLabelGroup)) map.removeLayer(blLabelGroup);
+  var btn = document.getElementById("blToggleBtn");
+  if (btn) { btn.textContent = "Bundesländer anzeigen"; btn.style.background = ""; }
+}
 
 function toggleBundeslaender() {
-  blVisible = !blVisible;
-  var btn = document.getElementById("blToggleBtn");
-  if (blVisible) {
-    map.addLayer(blGroup);
-    if (btn) {
-      btn.textContent = "Bundesländer ausblenden";
-      btn.style.background = "#27ae60";
-    }
+  if (!blVisible) {
+    if (lkVisible) _hideLK();
+    blVisible = true;
+    if (!map.hasLayer(blGroup)) blGroup.addTo(map);
+    if (!map.hasLayer(blLabelGroup)) blLabelGroup.addTo(map);
+    var btn = document.getElementById("blToggleBtn");
+    if (btn) { btn.textContent = "Bundesländer ausblenden"; btn.style.background = "#27ae60"; }
   } else {
-    map.removeLayer(blGroup);
-    if (btn) {
-      btn.textContent = "Bundesländer anzeigen";
-      btn.style.background = "";
+    _hideBL();
+  }
+}
+
+// ===== Overlay: Landkreise =====
+var LK_GEO_URL = "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/4_kreise/4_niedrig.geo.json";
+var lkGroup = L.layerGroup();
+var lkLabelGroup = L.layerGroup();
+var lkVisible = false;
+var lkLoaded = false;
+
+map.createPane("lkPane");
+map.getPane("lkPane").style.zIndex = 410;
+
+var LK_HUES = [25, 160, 200, 50, 290, 340, 180, 70];
+var LK_LABEL_MIN_ZOOM = 9;
+function lkColor(i) { return "hsl(" + LK_HUES[i % LK_HUES.length] + ",50%,83%)"; }
+
+function updateLKLabelVisibility() {
+  if (!lkVisible) return;
+  if (map.getZoom() >= LK_LABEL_MIN_ZOOM) {
+    if (!map.hasLayer(lkLabelGroup)) lkLabelGroup.addTo(map);
+  } else {
+    if (map.hasLayer(lkLabelGroup)) map.removeLayer(lkLabelGroup);
+  }
+}
+
+map.on("zoomend", updateLKLabelVisibility);
+
+function loadLandkreise() {
+  if (lkLoaded) {
+    if (lkVisible) {
+      if (!map.hasLayer(lkGroup)) lkGroup.addTo(map);
+      updateLKLabelVisibility();
     }
+    return;
+  }
+  fetch(LK_GEO_URL)
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      lkLoaded = true;
+      data.features.forEach(function (f, i) {
+        var name = f.properties.GEN || f.properties.NAME_3 || f.properties.name || "";
+        var poly = L.geoJSON(f, {
+          pane: "lkPane",
+          style: function () { return { fillColor: lkColor(i), fillOpacity: 0.5, color: "#555", weight: 0.8 }; }
+        });
+        poly.bindTooltip(name || "Landkreis", { sticky: true, direction: "top", opacity: 0.9 });
+        poly.on("mouseover", function (e) { e.target.setStyle({ fillOpacity: 0.75 }); });
+        poly.on("mouseout",  function (e) { e.target.setStyle({ fillOpacity: 0.5 }); });
+        poly.on("click", function (e) {
+          L.DomEvent.stopPropagation(e);
+          Object.keys(allLayers).forEach(function (p3) {
+            try {
+              var ctr = allLayers[p3].getBounds().getCenter();
+              if (turf.booleanPointInPolygon(turf.point([ctr.lng, ctr.lat]), f)) {
+                sel[p3] = true;
+                refreshLayer(p3);
+              }
+            } catch (err) {}
+          });
+          updateSidebar();
+        });
+        poly.addTo(lkGroup);
+        if (name) {
+          try {
+            var c = turf.centerOfMass(f);
+            L.marker([c.geometry.coordinates[1], c.geometry.coordinates[0]], {
+              icon: L.divIcon({ className: "", html: '<div class="lk-label">' + name + "</div>", iconSize: null, iconAnchor: [0, 0] }),
+              interactive: false
+            }).addTo(lkLabelGroup);
+          } catch (e) {}
+        }
+      });
+      if (lkVisible) {
+        if (!map.hasLayer(lkGroup)) lkGroup.addTo(map);
+        updateLKLabelVisibility();
+      }
+    })
+    .catch(function (e) { console.error("Landkreise GeoJSON Fehler:", e); });
+}
+
+function _hideLK() {
+  lkVisible = false;
+  if (map.hasLayer(lkGroup)) map.removeLayer(lkGroup);
+  if (map.hasLayer(lkLabelGroup)) map.removeLayer(lkLabelGroup);
+  var btn = document.getElementById("lkToggleBtn");
+  if (btn) { btn.textContent = "Landkreise anzeigen"; btn.style.background = ""; }
+}
+
+function toggleLandkreise() {
+  if (!lkVisible) {
+    if (blVisible) _hideBL();
+    lkVisible = true;
+    loadLandkreise();
+    var btn = document.getElementById("lkToggleBtn");
+    if (btn) { btn.textContent = "Landkreise ausblenden"; btn.style.background = "#2980b9"; }
+  } else {
+    _hideLK();
   }
 }
 
