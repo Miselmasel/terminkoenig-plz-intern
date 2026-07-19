@@ -16,6 +16,8 @@ var labelGroup = L.layerGroup().addTo(map);
 var multiMode = false;
 var multiPoints = [];
 var multiCircles = L.layerGroup().addTo(map);
+var eigenePlzLiveMarker = null;
+var eigenePlzScreenshotRef = null;
 
 var GEO_URL =
   "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
@@ -860,6 +862,34 @@ function drawOverlayLabels(ctx, canvas) {
     ctx.fillText(name, tx, ty);
     ctx.restore();
   });
+
+  // Eigene PLZ marker
+  if (eigenePlzScreenshotRef) {
+    var epLL = L.latLng(eigenePlzScreenshotRef.lat, eigenePlzScreenshotRef.lon);
+    if (bounds.contains(epLL)) {
+      var pt = map.latLngToContainerPoint(epLL);
+      ctx.save();
+      ctx.fillStyle = '#e74c3c';
+      ctx.strokeStyle = '#fff';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.arc(pt.x, pt.y, 8, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.stroke();
+      var label = eigenePlzScreenshotRef.plz + ' / ' + eigenePlzScreenshotRef.ort;
+      ctx.font = 'bold 12px Arial';
+      ctx.textAlign = 'left';
+      ctx.textBaseline = 'middle';
+      var tx = pt.x + 12, ty = pt.y;
+      ctx.fillStyle = '#fff';
+      [[-1,-1],[1,-1],[-1,1],[1,1],[0,-1],[0,1],[-1,0],[1,0]].forEach(function(o) {
+        ctx.fillText(label, tx + o[0], ty + o[1]);
+      });
+      ctx.fillStyle = '#e74c3c';
+      ctx.fillText(label, tx, ty);
+      ctx.restore();
+    }
+  }
 }
 
 function captureMapToCanvas() {
@@ -956,6 +986,25 @@ function switchFmTab(mode) {
   document.getElementById('fmStatus').textContent = '';
 }
 
+function updateEigenePlzMarker() {
+  var val = (document.getElementById('fmEigenePlz').value || '').replace(/\D/g,'').substring(0,5);
+  if (eigenePlzLiveMarker) {
+    map.removeLayer(eigenePlzLiveMarker);
+    eigenePlzLiveMarker = null;
+  }
+  if (val.length === 5 && plzDB) {
+    var ep = plzDB.find(function(e){ return e.plz === val; });
+    if (ep) {
+      eigenePlzLiveMarker = L.circleMarker([ep.lat, ep.lon], {
+        radius: 8, color: '#fff', weight: 2, fillColor: '#e74c3c', fillOpacity: 1
+      }).addTo(map);
+      eigenePlzLiveMarker.bindTooltip(ep.plz + ' / ' + ep.ort, {
+        permanent: true, direction: 'right', className: 'eigene-plz-tt'
+      }).openTooltip();
+    }
+  }
+}
+
 function submitFormular() {
   var statusEl = document.getElementById('fmStatus');
   var btn = document.getElementById('fmSendBtn');
@@ -990,9 +1039,19 @@ function submitFormular() {
   var eigenePlzRef = null;
   if (eigenePlzVal && plzDB) {
     var ep = plzDB.find(function(e){ return e.plz === eigenePlzVal; });
-    if (ep) eigenePlzRef = { lat: ep.lat, lon: ep.lon, plz: eigenePlzVal };
+    if (ep) eigenePlzRef = { lat: ep.lat, lon: ep.lon, plz: eigenePlzVal, ort: ep.ort };
   }
   if (eigenePlzRef) senderBlock.eigenePlz = eigenePlzRef.plz;
+
+  var today = new Date().toISOString().split('T')[0];
+  var fileBase;
+  if (fmMode === 'interessent') {
+    fileBase = (nachname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' +
+               (vorname||'').replace(/[^a-zA-ZäöüÄÖÜß0-9]/g,'') + '_' + today;
+  } else {
+    fileBase = (kundennummer||'').replace(/[^a-zA-Z0-9]/g,'') + '_' +
+               (vertragsnummer||'').replace(/[^a-zA-Z0-9]/g,'') + '_' + today;
+  }
 
   if (Object.keys(sel).length === 0) {
     statusEl.style.color = '#e74c3c';
@@ -1019,8 +1078,10 @@ function submitFormular() {
     map.fitBounds(combinedBounds, {padding: [60, 60], animate: false});
   }
 
+  eigenePlzScreenshotRef = eigenePlzRef;
   setTimeout(function() {
     captureMapToCanvas().then(function(canvas) {
+      eigenePlzScreenshotRef = null;
       map.setView(origCenter, origZoom, {animate: false});
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
@@ -1031,7 +1092,8 @@ function submitFormular() {
         csvString: buildEmailCSVString(eigenePlzRef),
         csvTable: buildEmailCSVTable(eigenePlzRef),
         holidaySection: buildEmailHolidaySection(),
-        plzCount: Object.keys(sel).length
+        plzCount: Object.keys(sel).length,
+        fileBase: fileBase
       };
       fetch(SEND_EMAIL_API, {
         method: 'POST',

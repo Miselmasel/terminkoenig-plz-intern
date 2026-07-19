@@ -152,3 +152,5 @@ select {
 .cal-fei { background:#e74c3c !important;color:#fff !important;cursor:pointer;border-radius:3px; }
 .cal-fei:hover { background:#c0392b !important; }
 .cal-fei.cal-today { outline:2px solid #642d7b; }
+.eigene-plz-tt { background:#e74c3c !important; color:#fff !important; border:2px solid #fff !important; font-size:11px !important; font-weight:bold !important; white-space:nowrap !important; }
+.eigene-plz-tt::before { border-right-color:#e74c3c !important; }

@@ -8,7 +8,8 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount } = req.body || {};
+  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount, fileBase } = req.body || {};
+  const baseName = (fileBase || ('auswahl_' + new Date().toISOString().split('T')[0])).replace(/[^a-zA-Z0-9äöüÄÖÜß_\-]/g, '_');
 
   if (!emailSubject || !senderBlock) {
     return res.status(400).json({ ok: false, error: 'Absender-Daten fehlen' });
@@ -90,17 +91,17 @@ ${holidaySection || '<p>Keine Feiertags-Daten.</p>'}
     html: emailHtml,
     attachments: [
       ...(base64Data ? [{
-        filename: 'karte.jpg',
+        filename: baseName + '.jpg',
         content: Buffer.from(base64Data, 'base64'),
         cid: 'mapimage@terminkoenig'
       }] : []),
       ...(csvString ? [{
-        filename: 'plz-auswahl.csv',
+        filename: baseName + '.csv',
         content: Buffer.from(csvString, 'utf-8'),
         contentType: 'text/csv; charset=utf-8'
       }] : []),
       ...(base64Data ? [{
-        filename: 'karte-screenshot.jpg',
+        filename: baseName + '_karte.jpg',
         content: Buffer.from(base64Data, 'base64'),
         contentType: 'image/jpeg'
       }] : [])

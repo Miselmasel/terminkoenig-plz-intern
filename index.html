@@ -101,7 +101,7 @@
       <input type="text" id="fmKundennummer" placeholder="Kundennummer *" maxlength="30" style="margin:0;">
       <input type="text" id="fmVertragsnummer" placeholder="Vertragsnummer *" maxlength="30" style="margin:0;">
     </div>
-    <input type="text" id="fmEigenePlz" placeholder="Eigene PLZ – Entfernung berechnen (optional)" maxlength="5" style="margin-top:4px;margin-bottom:0;" oninput="this.value=this.value.replace(/\D/g,'').substring(0,5)">
+    <input type="text" id="fmEigenePlz" placeholder="Eigene PLZ – Entfernung berechnen (optional)" maxlength="5" style="margin-top:4px;margin-bottom:0;" oninput="this.value=this.value.replace(/\D/g,'').substring(0,5);updateEigenePlzMarker();">
     <button class="bb" onclick="submitFormular()" style="margin-top:6px;" id="fmSendBtn">Auswahl senden</button>
     <div id="fmStatus" style="font-size:11px;margin-top:4px;min-height:16px;"></div>
   </div>
