@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  const { emailSubject, senderBlock, mapImage, csvTable, holidaySection, plzCount } = req.body || {};
+  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount } = req.body || {};
 
   if (!emailSubject || !senderBlock) {
     return res.status(400).json({ ok: false, error: 'Absender-Daten fehlen' });
@@ -86,11 +86,23 @@ ${holidaySection || '<p>Keine Feiertags-Daten.</p>'}
     to: process.env.EMAIL_TO,
     subject: `PLZ-Auswahl [${emailSubject}] (${plzCount} Bereiche) – ${now}`,
     html: emailHtml,
-    attachments: base64Data ? [{
-      filename: 'karte.jpg',
-      content: Buffer.from(base64Data, 'base64'),
-      cid: 'mapimage@terminkoenig'
-    }] : []
+    attachments: [
+      ...(base64Data ? [{
+        filename: 'karte.jpg',
+        content: Buffer.from(base64Data, 'base64'),
+        cid: 'mapimage@terminkoenig'
+      }] : []),
+      ...(csvString ? [{
+        filename: 'plz-auswahl.csv',
+        content: Buffer.from(csvString, 'utf-8'),
+        contentType: 'text/csv; charset=utf-8'
+      }] : []),
+      ...(base64Data ? [{
+        filename: 'karte-screenshot.jpg',
+        content: Buffer.from(base64Data, 'base64'),
+        contentType: 'image/jpeg'
+      }] : [])
+    ]
   };
 
   try {

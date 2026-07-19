@@ -3,7 +3,8 @@ var map = L.map("map").setView([51.2, 10.4], 7);
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
   attribution: '&copy; OpenStreetMap contributors, &copy; CARTO',
   subdomains: 'abcd',
-  maxZoom: 19
+  maxZoom: 19,
+  crossOrigin: 'anonymous'
 }).addTo(map);
 
 var sel = {};
@@ -771,6 +772,82 @@ function buildEmailHolidaySection() {
   return h || '<p>Keine Feiertage für die ausgewählten Bundesländer.</p>';
 }
 
+function captureMapToCanvas() {
+  return new Promise(function(resolve, reject) {
+    var container = document.getElementById('map');
+    var canvas = document.createElement('canvas');
+    canvas.width = container.offsetWidth;
+    canvas.height = container.offsetHeight;
+    var ctx = canvas.getContext('2d');
+    var mapRect = container.getBoundingClientRect();
+
+    // Draw all tile images using their real screen positions (bypasses Leaflet transform issues)
+    var loadPromises = [];
+    container.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').forEach(function(tile) {
+      if (!tile.src || tile.style.visibility === 'hidden') return;
+      var rect = tile.getBoundingClientRect();
+      if (rect.right < mapRect.left || rect.left > mapRect.right ||
+          rect.bottom < mapRect.top || rect.top > mapRect.bottom) return;
+      var x = Math.round(rect.left - mapRect.left);
+      var y = Math.round(rect.top - mapRect.top);
+      var w = Math.round(rect.width);
+      var h = Math.round(rect.height);
+      function drawIt() { try { ctx.drawImage(tile, x, y, w, h); } catch(e) {} }
+      if (tile.complete && tile.naturalWidth > 0) {
+        drawIt();
+      } else {
+        loadPromises.push(new Promise(function(res) {
+          tile.addEventListener('load', function() { drawIt(); res(); }, {once: true});
+          tile.addEventListener('error', res, {once: true});
+        }));
+      }
+    });
+
+    Promise.all(loadPromises).then(function() {
+      // Draw SVG overlay (polygon layer) at its actual screen position
+      var svgEl = container.querySelector('.leaflet-overlay-pane svg');
+      if (!svgEl) { resolve(canvas); return; }
+      var svgRect = svgEl.getBoundingClientRect();
+      var svgClone = svgEl.cloneNode(true);
+      svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      var blob = new Blob([new XMLSerializer().serializeToString(svgClone)], {type: 'image/svg+xml;charset=utf-8'});
+      var url = URL.createObjectURL(blob);
+      var img = new Image();
+      img.onload = function() {
+        ctx.drawImage(img, Math.round(svgRect.left - mapRect.left), Math.round(svgRect.top - mapRect.top),
+          Math.round(svgRect.width), Math.round(svgRect.height));
+        URL.revokeObjectURL(url);
+        resolve(canvas);
+      };
+      img.onerror = function() { URL.revokeObjectURL(url); resolve(canvas); };
+      img.src = url;
+    }).catch(reject);
+  });
+}
+
+function buildEmailCSVString() {
+  var pkName = {'r':'Preisklasse 3 (Rot)','y':'Preisklasse 2 (Gelb)','g':'Preisklasse 1 (Grün)','l':'Nicht buchbar (Lila)'};
+  var keys = Object.keys(sel).sort();
+  var lines = ['PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Preisklasse'];
+  keys.forEach(function(prefix) {
+    var pk = PREISKLASSEN[prefix] || '';
+    var pkLabel = pkName[pk] || 'Unbekannt';
+    if (plzDB) {
+      var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
+      if (matches.length === 0) {
+        lines.push(prefix+'xx;;;;'+pkLabel);
+      } else {
+        matches.forEach(function(e) {
+          lines.push(prefix+'xx;'+e.plz+';'+e.ort+';'+e.bundesland+';'+e.einwohner+';'+pkLabel);
+        });
+      }
+    } else {
+      lines.push(prefix+'xx;;;;'+pkLabel);
+    }
+  });
+  return '﻿' + lines.join('\r\n');
+}
+
 var fmMode = 'interessent';
 
 function switchFmTab(mode) {
@@ -836,16 +913,8 @@ function submitFormular() {
   if (combinedBounds) {
     map.fitBounds(combinedBounds, {padding: [60, 60], animate: false});
   }
-  // Reset Leaflet's internal pan offset so html2canvas captures polygons at correct positions
-  map.setView(map.getCenter(), map.getZoom(), {reset: true, animate: false});
 
-  setTimeout(function() {
-    html2canvas(document.getElementById('map'), {
-      useCORS: true,
-      allowTaint: true,
-      scale: 1,
-      logging: false
-    }).then(function(canvas) {
+  captureMapToCanvas().then(function(canvas) {
       map.setView(origCenter, origZoom, {animate: false});
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
@@ -853,6 +922,7 @@ function submitFormular() {
         emailSubject: emailSubject,
         senderBlock: senderBlock,
         mapImage: imgData,
+        csvString: buildEmailCSVString(),
         csvTable: buildEmailCSVTable(),
         holidaySection: buildEmailHolidaySection(),
         plzCount: Object.keys(sel).length
@@ -889,7 +959,7 @@ function submitFormular() {
       statusEl.textContent = 'Screenshot-Fehler – bitte erneut versuchen.';
       console.error(err);
     });
-  }, 400);
 }
+
 
 renderCalendar();
