@@ -613,7 +613,7 @@ updateCityLayer();
 
 // ===== Overlay: Bundeslaender, pastellfarben im Hintergrund =====
 var BL_GEO_URL =
-  "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/2_bundeslaender/4_niedrig.geo.json";
+  "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/2_bundeslaender/3_mittel.geo.json";
 var blGroup = L.layerGroup();
 var blLabelGroup = L.layerGroup();
 var blVisible = false;
@@ -675,7 +675,7 @@ function toggleBundeslaender() {
 }
 
 // ===== Overlay: Landkreise =====
-var LK_GEO_URL = "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/4_kreise/4_niedrig.geo.json";
+var LK_GEO_URL = "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/4_kreise/3_mittel.geo.json";
 var lkGroup = L.layerGroup();
 var lkLabelGroup = L.layerGroup();
 var lkVisible = false;
