@@ -118,26 +118,42 @@ function addLabels() {
   var zoom = map.getZoom();
   if (zoom < 7) return;
   var fontSize = zoom < 8 ? 7 : zoom < 9 ? 9 : zoom < 10 ? 11 : 13;
-  // Je weiter man rauszoomt, desto groesser der Mindestabstand zwischen Labels
-  // (weniger PLZ-Beschriftungen) - je naeher man reinzoomt, desto kleiner der
-  // Abstand (mehr Beschriftungen), bis ab Zoom 11 alle sichtbaren angezeigt werden.
   var spacing = zoom < 8 ? 80 : zoom < 9 ? 55 : zoom < 10 ? 35 : zoom < 11 ? 18 : 0;
+  var cityGuard = zoom < 8 ? 60 : zoom < 10 ? 45 : 35;
   var bounds = map.getBounds();
+
+  // Pre-compute visible city positions so PLZ labels stay clear of them
+  var naturalThr = cityPopThreshold(zoom);
+  var cityThr = zoom >= 11 ? naturalThr : Math.max(naturalThr, cityMinPop);
+  var cityPts = [];
+  STAEDTE.forEach(function(c) {
+    var thr = cityThr;
+    if (isNRWArea(c[0], c[1])) thr = Math.max(thr, cityPopThresholdNRW(zoom));
+    if (c[3] < thr) return;
+    var latlng = L.latLng(c[0], c[1]);
+    if (!bounds.contains(latlng)) return;
+    var pt = map.latLngToContainerPoint(latlng);
+    cityPts.push([pt.x, pt.y]);
+  });
+
   var occupied = [];
-  function tooClose(pt) {
-    for (var i = 0; i < occupied.length; i++) {
-      var dx = occupied[i][0] - pt.x,
-        dy = occupied[i][1] - pt.y;
-      if (Math.sqrt(dx * dx + dy * dy) < spacing) return true;
-    }
-    return false;
-  }
   Object.keys(centroids).forEach(function (plz3) {
     centroids[plz3].forEach(function (c) {
       if (!bounds.contains(c)) return;
+      var pt = map.latLngToContainerPoint(c);
+      // Skip if centroid is too close to a city name
+      var nearCity = cityPts.some(function(o) {
+        var dx = o[0] - pt.x, dy = o[1] - pt.y;
+        return Math.sqrt(dx*dx + dy*dy) < cityGuard;
+      });
+      if (nearCity) return;
+      // Skip if too close to another PLZ label
       if (spacing > 0) {
-        var pt = map.latLngToContainerPoint(c);
-        if (tooClose(pt)) return;
+        var tooClose = occupied.some(function(o) {
+          var dx = o[0] - pt.x, dy = o[1] - pt.y;
+          return Math.sqrt(dx*dx + dy*dy) < spacing;
+        });
+        if (tooClose) return;
         occupied.push([pt.x, pt.y]);
       }
       var icon = L.divIcon({
@@ -158,7 +174,7 @@ function addLabels() {
   });
 }
 
-map.on("zoomend moveend", addLabels);
+map.on("zoomend moveend", function() { addLabels(); updateCityLayer(); });
 
 function togglePLZ(plz3) {
   if (multiMode) {
