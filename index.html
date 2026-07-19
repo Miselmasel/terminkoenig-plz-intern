@@ -26,7 +26,6 @@
   </div>
 
   <div class="s">
-    <h3>BUNDESLÄNDER</h3>
     <button class="bk" id="blToggleBtn" onclick="toggleBundeslaender()">Bundesländer anzeigen</button>
   </div>
 
@@ -88,13 +87,23 @@
   </div>
 
   <div class="s">
-    <h3>AUSWAHL SENDEN</h3>
-    <div style="font-size:11px;color:#666;margin-bottom:6px;">Auswahl per E-Mail übermitteln</div>
-    <div style="display:flex;flex-direction:column;gap:4px;">
+    <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
+      <span style="font-size:11px;font-weight:bold;color:#333;">Auswahl per E-Mail an:</span>
+      <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:14px;vertical-align:middle;">
+      <span style="font-size:11px;font-weight:bold;color:#333;">senden</span>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:8px;">
+      <button id="tabInteressent" class="fm-tab fm-tab-active" onclick="switchFmTab('interessent')">Interessent</button>
+      <button id="tabKunde" class="fm-tab" onclick="switchFmTab('kunde')">Kunde</button>
+    </div>
+    <div id="fmInteressent" style="display:flex;flex-direction:column;gap:4px;">
       <input type="text" id="fmVorname" placeholder="Vorname *" maxlength="50" style="margin:0;">
       <input type="text" id="fmNachname" placeholder="Nachname *" maxlength="50" style="margin:0;">
-      <input type="text" id="fmKunde" placeholder="Kundennummer (optional)" maxlength="30" style="margin:0;">
-      <input type="text" id="fmVertrag" placeholder="Vertragsnummer (optional)" maxlength="30" style="margin:0;">
+      <input type="email" id="fmEmail" placeholder="E-Mail-Adresse *" maxlength="100" style="margin:0;">
+    </div>
+    <div id="fmKundeSection" style="display:none;flex-direction:column;gap:4px;">
+      <input type="text" id="fmKundennummer" placeholder="Kundennummer *" maxlength="30" style="margin:0;">
+      <input type="text" id="fmVertragsnummer" placeholder="Vertragsnummer *" maxlength="30" style="margin:0;">
     </div>
     <button class="bb" onclick="submitFormular()" style="margin-top:6px;" id="fmSendBtn">Auswahl senden</button>
     <div id="fmStatus" style="font-size:11px;margin-top:4px;min-height:16px;"></div>

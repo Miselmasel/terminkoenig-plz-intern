@@ -771,19 +771,46 @@ function buildEmailHolidaySection() {
   return h || '<p>Keine Feiertage für die ausgewählten Bundesländer.</p>';
 }
 
+var fmMode = 'interessent';
+
+function switchFmTab(mode) {
+  fmMode = mode;
+  var isInt = mode === 'interessent';
+  document.getElementById('fmInteressent').style.display = isInt ? 'flex' : 'none';
+  document.getElementById('fmKundeSection').style.display = isInt ? 'none' : 'flex';
+  document.getElementById('tabInteressent').className = 'fm-tab' + (isInt ? ' fm-tab-active' : '');
+  document.getElementById('tabKunde').className = 'fm-tab' + (!isInt ? ' fm-tab-active' : '');
+  document.getElementById('fmStatus').textContent = '';
+}
+
 function submitFormular() {
-  var vorname = (document.getElementById('fmVorname').value||'').trim();
-  var nachname = (document.getElementById('fmNachname').value||'').trim();
-  var kunde = (document.getElementById('fmKunde').value||'').trim();
-  var vertrag = (document.getElementById('fmVertrag').value||'').trim();
   var statusEl = document.getElementById('fmStatus');
   var btn = document.getElementById('fmSendBtn');
+  var emailSubject, senderBlock;
 
-  if (!vorname || !nachname) {
-    statusEl.style.color = '#e74c3c';
-    statusEl.textContent = 'Bitte Vor- und Nachname eingeben.';
-    return;
+  if (fmMode === 'interessent') {
+    var vorname = (document.getElementById('fmVorname').value||'').trim();
+    var nachname = (document.getElementById('fmNachname').value||'').trim();
+    var email = (document.getElementById('fmEmail').value||'').trim();
+    if (!vorname || !nachname || !email) {
+      statusEl.style.color = '#e74c3c';
+      statusEl.textContent = 'Bitte Vor-, Nachname und E-Mail-Adresse eingeben.';
+      return;
+    }
+    emailSubject = 'Interessent: ' + vorname + ' ' + nachname + ' – ' + email;
+    senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email };
+  } else {
+    var kundennummer = (document.getElementById('fmKundennummer').value||'').trim();
+    var vertragsnummer = (document.getElementById('fmVertragsnummer').value||'').trim();
+    if (!kundennummer || !vertragsnummer) {
+      statusEl.style.color = '#e74c3c';
+      statusEl.textContent = 'Bitte Kundennummer und Vertragsnummer eingeben.';
+      return;
+    }
+    emailSubject = 'Kunde: ' + kundennummer + ' ' + vertragsnummer;
+    senderBlock = { type: 'kunde', kundennummer: kundennummer, vertragsnummer: vertragsnummer };
   }
+
   if (Object.keys(sel).length === 0) {
     statusEl.style.color = '#e74c3c';
     statusEl.textContent = 'Bitte zuerst PLZ-Gebiete auswählen.';
@@ -823,10 +850,8 @@ function submitFormular() {
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
       var payload = {
-        vorname: vorname,
-        nachname: nachname,
-        kundennummer: kunde,
-        vertragsnummer: vertrag,
+        emailSubject: emailSubject,
+        senderBlock: senderBlock,
         mapImage: imgData,
         csvTable: buildEmailCSVTable(),
         holidaySection: buildEmailHolidaySection(),

@@ -8,10 +8,10 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  const { vorname, nachname, kundennummer, vertragsnummer, mapImage, csvTable, holidaySection, plzCount } = req.body || {};
+  const { emailSubject, senderBlock, mapImage, csvTable, holidaySection, plzCount } = req.body || {};
 
-  if (!vorname || !nachname) {
-    return res.status(400).json({ ok: false, error: 'Vorname und Nachname erforderlich' });
+  if (!emailSubject || !senderBlock) {
+    return res.status(400).json({ ok: false, error: 'Absender-Daten fehlen' });
   }
 
   const transporter = nodemailer.createTransport({
@@ -24,7 +24,6 @@ module.exports = async function handler(req, res) {
     }
   });
 
-  const fullName = `${vorname} ${nachname}`;
   const now = new Date().toLocaleString('de-DE', { timeZone: 'Europe/Berlin' });
 
   // Extract base64 data from data URI for CID embedding
@@ -51,9 +50,12 @@ module.exports = async function handler(req, res) {
 
 <div class="info-box">
   <table>
-    <tr><td>Name:</td><td>${fullName}</td></tr>
-    ${kundennummer ? `<tr><td>Kundennummer:</td><td>${kundennummer}</td></tr>` : ''}
-    ${vertragsnummer ? `<tr><td>Vertragsnummer:</td><td>${vertragsnummer}</td></tr>` : ''}
+    ${senderBlock.type === 'interessent'
+      ? `<tr><td>Name:</td><td>${senderBlock.vorname} ${senderBlock.nachname}</td></tr>
+         <tr><td>E-Mail:</td><td>${senderBlock.email}</td></tr>`
+      : `<tr><td>Kundennummer:</td><td>${senderBlock.kundennummer}</td></tr>
+         <tr><td>Vertragsnummer:</td><td>${senderBlock.vertragsnummer}</td></tr>`
+    }
     <tr><td>Datum / Uhrzeit:</td><td>${now}</td></tr>
     <tr><td>Anzahl PLZ-Bereiche:</td><td>${plzCount}</td></tr>
   </table>
@@ -82,7 +84,7 @@ ${holidaySection || '<p>Keine Feiertags-Daten.</p>'}
   const mailOptions = {
     from: `"Terminkönig PLZ-Karte" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: `PLZ-Auswahl von ${fullName} (${plzCount} Bereiche) – ${now}`,
+    subject: `PLZ-Auswahl [${emailSubject}] (${plzCount} Bereiche) – ${now}`,
     html: emailHtml,
     attachments: base64Data ? [{
       filename: 'karte.jpg',
