@@ -895,7 +895,7 @@ function getHolidaysForState(state,year){
   var result=[];
   Object.keys(hols).sort().forEach(function(dk){
     var h=hols[dk];
-    if(h.s==='all'||(state&&Array.isArray(h.s)&&h.s.indexOf(state)>=0)){
+    if(state&&Array.isArray(h.s)&&h.s.indexOf(state)>=0){
       var p=dk.split('-');
       result.push(p[2]+'.'+p[1]+'.:'+h.n);
     }
