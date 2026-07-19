@@ -793,11 +793,33 @@ function drawOverlayLabels(ctx, canvas) {
   var zoom = map.getZoom();
   var bounds = map.getBounds();
 
-  // PLZ number labels
+  // Compute which cities will be shown so PLZ labels can avoid them
+  var naturalThreshold = zoom <= 5 ? 500000 : zoom === 6 ? 200000 : zoom === 7 ? 100000 :
+    zoom === 8 ? 50000 : zoom === 9 ? 30000 : zoom === 10 ? 20000 : 0;
+  var cityThr = zoom >= 11 ? naturalThreshold : Math.max(naturalThreshold, cityMinPop);
+  var cityPoints = [];
+  STAEDTE.forEach(function(c) {
+    var lat = c[0], lon = c[1], pop = c[3];
+    var thr = cityThr;
+    if (isNRWArea(lat, lon)) {
+      var nrwThr = zoom <= 6 ? 500000 : zoom === 7 ? 250000 : zoom === 8 ? 150000 :
+        zoom === 9 ? 75000 : zoom === 10 ? 40000 : 0;
+      thr = Math.max(thr, nrwThr);
+    }
+    if (pop < thr) return;
+    var latlng = L.latLng(lat, lon);
+    if (!bounds.contains(latlng)) return;
+    var pt = map.latLngToContainerPoint(latlng);
+    if (pt.x < -20 || pt.x > canvas.width + 20 || pt.y < -20 || pt.y > canvas.height + 20) return;
+    cityPoints.push([pt.x, pt.y]);
+  });
+
+  // PLZ number labels — skip positions too close to a city label
   if (zoom >= 7) {
     var fontSize = zoom < 8 ? 7 : zoom < 9 ? 9 : zoom < 10 ? 11 : 13;
     var spacing = zoom < 8 ? 80 : zoom < 9 ? 55 : zoom < 10 ? 35 : zoom < 11 ? 18 : 0;
-    var occupied = [];
+    var cityGuard = zoom < 8 ? 60 : zoom < 10 ? 45 : 35;
+    var occupied = cityPoints.slice(); // pre-fill with city positions
     ctx.save();
     ctx.textAlign = 'center';
     ctx.textBaseline = 'middle';
@@ -806,14 +828,19 @@ function drawOverlayLabels(ctx, canvas) {
       centroids[plz3].forEach(function(c) {
         if (!bounds.contains(c)) return;
         var pt = map.latLngToContainerPoint(c);
+        var nearCity = cityPoints.some(function(o) {
+          var dx = o[0] - pt.x, dy = o[1] - pt.y;
+          return Math.sqrt(dx*dx + dy*dy) < cityGuard;
+        });
+        if (nearCity) return;
         if (spacing > 0) {
           var tooClose = occupied.some(function(o) {
             var dx = o[0] - pt.x, dy = o[1] - pt.y;
             return Math.sqrt(dx*dx + dy*dy) < spacing;
           });
           if (tooClose) return;
-          occupied.push([pt.x, pt.y]);
         }
+        occupied.push([pt.x, pt.y]);
         var text = plz3 + 'xx';
         ctx.fillStyle = '#fff';
         [[-1,-1],[1,-1],[-1,1],[1,1],[0,-1],[0,1],[-1,0],[1,0]].forEach(function(o) {
@@ -826,10 +853,7 @@ function drawOverlayLabels(ctx, canvas) {
     ctx.restore();
   }
 
-  // City dots and names
-  var naturalThreshold = zoom <= 5 ? 500000 : zoom === 6 ? 200000 : zoom === 7 ? 100000 :
-    zoom === 8 ? 50000 : zoom === 9 ? 30000 : zoom === 10 ? 20000 : 0;
-  var cityThr = zoom >= 11 ? naturalThreshold : Math.max(naturalThreshold, cityMinPop);
+  // City dots and names — drawn last so they appear on top of PLZ labels
   STAEDTE.forEach(function(c) {
     var lat = c[0], lon = c[1], name = c[2], pop = c[3];
     var thr = cityThr;
