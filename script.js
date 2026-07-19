@@ -932,6 +932,12 @@ function captureMapToCanvas() {
       var svgRect = svgEl.getBoundingClientRect();
       var svgClone = svgEl.cloneNode(true);
       svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
+      // Remove CSS transform from root SVG — viewBox already handles the offset.
+      // Without this, the transform gets applied AGAIN when SVG loads as <img>,
+      // causing a double-displacement equal to (b.min.x, b.min.y) pixels.
+      svgClone.style.transform = '';
+      svgClone.style.webkitTransform = '';
+      svgClone.style.position = '';
       var blob = new Blob([new XMLSerializer().serializeToString(svgClone)], {type: 'image/svg+xml;charset=utf-8'});
       var url = URL.createObjectURL(blob);
       var img = new Image();
