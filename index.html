@@ -100,11 +100,13 @@
       <input type="text" id="fmVorname" placeholder="Vorname *" maxlength="50" style="margin:0;">
       <input type="text" id="fmNachname" placeholder="Nachname *" maxlength="50" style="margin:0;">
       <input type="email" id="fmEmail" placeholder="E-Mail-Adresse *" maxlength="100" style="margin:0;">
+      <input type="tel" id="fmTelefon" placeholder="Telefon (optional)" maxlength="30" style="margin:0;">
     </div>
     <div id="fmKundeSection" style="display:none;flex-direction:column;gap:4px;">
       <input type="text" id="fmKundennummer" placeholder="Kundennummer *" maxlength="30" style="margin:0;">
       <input type="text" id="fmVertragsnummer" placeholder="Vertragsnummer *" maxlength="30" style="margin:0;">
     </div>
+    <input type="text" id="fmEigenePlz" placeholder="Eigene PLZ – Entfernung berechnen (optional)" maxlength="5" style="margin-top:4px;margin-bottom:0;" oninput="this.value=this.value.replace(/\D/g,'').substring(0,5)">
     <button class="bb" onclick="submitFormular()" style="margin-top:6px;" id="fmSendBtn">Auswahl senden</button>
     <div id="fmStatus" style="font-size:11px;margin-top:4px;min-height:16px;"></div>
   </div>

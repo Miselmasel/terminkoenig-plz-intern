@@ -52,10 +52,12 @@ module.exports = async function handler(req, res) {
   <table>
     ${senderBlock.type === 'interessent'
       ? `<tr><td>Name:</td><td>${senderBlock.vorname} ${senderBlock.nachname}</td></tr>
-         <tr><td>E-Mail:</td><td>${senderBlock.email}</td></tr>`
+         <tr><td>E-Mail:</td><td>${senderBlock.email}</td></tr>
+         ${senderBlock.telefon ? `<tr><td>Telefon:</td><td>${senderBlock.telefon}</td></tr>` : ''}`
       : `<tr><td>Kundennummer:</td><td>${senderBlock.kundennummer}</td></tr>
          <tr><td>Vertragsnummer:</td><td>${senderBlock.vertragsnummer}</td></tr>`
     }
+    ${senderBlock.eigenePlz ? `<tr><td>Eigene PLZ:</td><td>${senderBlock.eigenePlz}</td></tr>` : ''}
     <tr><td>Datum / Uhrzeit:</td><td>${now}</td></tr>
     <tr><td>Anzahl PLZ-Bereiche:</td><td>${plzCount}</td></tr>
   </table>

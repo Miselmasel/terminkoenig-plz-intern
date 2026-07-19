@@ -374,28 +374,33 @@ function haversine(lat1, lon1, lat2, lon2) {
 }
 
 function exportCSV() {
-  var year = new Date().getFullYear();
+  var pkName = {'r':'Preisklasse 3 (Rot)','y':'Preisklasse 2 (Gelb)','g':'Preisklasse 1 (Grün)','l':'Nicht buchbar (Lila)'};
   var keys = Object.keys(sel).sort();
-  var lines = ["﻿PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Entfernung_km;Feiertage"];
+  var epEl = document.getElementById('fmEigenePlz');
+  var eigenePlzVal = epEl ? epEl.value.replace(/\D/g,'').substring(0,5) : '';
+  var eigenePlzRef = null;
+  if (eigenePlzVal && plzDB) {
+    var ep = plzDB.find(function(e){ return e.plz === eigenePlzVal; });
+    if (ep) eigenePlzRef = { lat: ep.lat, lon: ep.lon, plz: eigenePlzVal };
+  }
+  var header = '﻿PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Preisklasse' + (eigenePlzRef ? ';Entfernung_' + eigenePlzRef.plz + '_km' : '');
+  var lines = [header];
   keys.forEach(function(prefix) {
-    var refs = centroids[prefix] || [];
-    var refLat = 0, refLon = 0;
-    refs.forEach(function(c){refLat+=c.lat; refLon+=c.lng;});
-    if (refs.length > 0) { refLat/=refs.length; refLon/=refs.length; }
-    var state = PLZ3_STAAT ? PLZ3_STAAT[prefix] : undefined;
-    var holStr = (typeof getHolidaysForState === 'function') ? getHolidaysForState(state, year) : '';
+    var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
+    var pkLabel = pkName[pk] || 'Unbekannt';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        lines.push(prefix+'xx;;;;;'+';'+holStr);
+        lines.push(prefix+'xx;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
       } else {
         matches.forEach(function(e){
-          var dist = refs.length > 0 ? String(haversine(refLat,refLon,e.lat,e.lon)).replace('.',',') : '';
-          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,e.einwohner,dist,holStr].join(';'));
+          var ew = Math.round(parseInt(e.einwohner||0) / 1000) * 1000;
+          var distStr = eigenePlzRef ? (';' + Math.round(haversine(eigenePlzRef.lat, eigenePlzRef.lon, e.lat, e.lon))) : '';
+          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,ew,pkLabel].join(';') + distStr);
         });
       }
     } else {
-      lines.push(prefix+'xx;(DB nicht geladen);;;;'+';'+holStr);
+      lines.push(prefix+'xx;(DB nicht geladen);;;'+pkLabel+(eigenePlzRef ? ';' : ''));
     }
   });
   dlFile("auswahl.csv", lines.join("\n"), "text/csv");
@@ -713,36 +718,41 @@ function getHolidaysForState(state,year){
 // Nach Vercel-Deployment diese URL mit der eigenen Vercel-URL ersetzen:
 var SEND_EMAIL_API = 'https://terminkoenig-plz-suche.vercel.app/api/send-email';
 
-function buildEmailCSVTable() {
-  var year = new Date().getFullYear();
+function buildEmailCSVTable(eigenePlzRef) {
+  var pkColors = {'r':'#e74c3c','y':'#f39c12','g':'#2ecc71','l':'#642d7b'};
+  var pkFull = {'r':'Preisklasse 3','y':'Preisklasse 2','g':'Preisklasse 1','l':'Nicht buchbar'};
   var keys = Object.keys(sel).sort();
   if (keys.length === 0) return '<p>Keine PLZ ausgewählt.</p>';
   var rows = [];
   keys.forEach(function(prefix) {
-    var state = PLZ3_STAAT ? PLZ3_STAAT[prefix] : '';
-    var holStr = getHolidaysForState(state, year);
-    var refs = centroids[prefix] || [];
-    var refLat = 0, refLon = 0;
-    refs.forEach(function(c){refLat+=c.lat; refLon+=c.lng;});
-    if (refs.length > 0) { refLat/=refs.length; refLon/=refs.length; }
+    var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
+    var pkCell = pk ? '<span style="background:' + pkColors[pk] + ';color:#fff;padding:1px 5px;border-radius:3px;font-size:10px;white-space:nowrap;">' + pkFull[pk] + '</span>' : '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        rows.push([prefix+'xx','','','','','',holStr]);
+        var row = [prefix+'xx','','','','',pkCell];
+        if (eigenePlzRef) row.push('');
+        rows.push(row);
       } else {
         matches.forEach(function(e){
-          var dist = refs.length > 0 ? String(haversine(refLat,refLon,e.lat,e.lon)).replace('.',',') : '';
-          rows.push([prefix+'xx',e.plz,e.ort,e.bundesland,e.einwohner,dist,holStr]);
+          var ew = Math.round(parseInt(e.einwohner||0) / 1000) * 1000;
+          var row = [prefix+'xx', e.plz, e.ort, e.bundesland, ew.toLocaleString('de-DE'), pkCell];
+          if (eigenePlzRef) row.push(Math.round(haversine(eigenePlzRef.lat, eigenePlzRef.lon, e.lat, e.lon)) + ' km');
+          rows.push(row);
         });
       }
     } else {
-      rows.push([prefix+'xx','–','–','–','–','',holStr]);
+      var row = [prefix+'xx','–','–','–','–',pkCell];
+      if (eigenePlzRef) row.push('');
+      rows.push(row);
     }
   });
   var h = '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-size:11px;width:100%;min-width:600px;">';
-  h += '<tr style="background:#642d7b;color:#fff;"><th>PLZ-Bereich</th><th>PLZ</th><th>Ort</th><th>Bundesland</th><th>Einwohner</th><th>Entfernung km</th><th>Feiertage</th></tr>';
+  h += '<tr style="background:#642d7b;color:#fff;"><th>PLZ-Bereich</th><th>PLZ</th><th>Ort</th><th>Bundesland</th><th>Einwohner ca.</th><th>Preisklasse</th>';
+  if (eigenePlzRef) h += '<th>Entfernung von ' + eigenePlzRef.plz + ' (km)</th>';
+  h += '</tr>';
   rows.forEach(function(r) {
-    h += '<tr>' + r.map(function(cell,i){ return '<td style="'+(i===6?'font-size:10px;':'')+'">'+(cell!==undefined?cell:'')+'</td>'; }).join('') + '</tr>';
+    h += '<tr>' + r.map(function(cell){ return '<td>'+(cell!==undefined?cell:'')+'</td>'; }).join('') + '</tr>';
   });
   h += '</table>';
   return h;
@@ -772,6 +782,81 @@ function buildEmailHolidaySection() {
   return h || '<p>Keine Feiertage für die ausgewählten Bundesländer.</p>';
 }
 
+function drawOverlayLabels(ctx, canvas) {
+  var zoom = map.getZoom();
+  var bounds = map.getBounds();
+
+  // PLZ number labels
+  if (zoom >= 7) {
+    var fontSize = zoom < 8 ? 7 : zoom < 9 ? 9 : zoom < 10 ? 11 : 13;
+    var spacing = zoom < 8 ? 80 : zoom < 9 ? 55 : zoom < 10 ? 35 : zoom < 11 ? 18 : 0;
+    var occupied = [];
+    ctx.save();
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.font = 'bold ' + fontSize + 'px Arial';
+    Object.keys(centroids).forEach(function(plz3) {
+      centroids[plz3].forEach(function(c) {
+        if (!bounds.contains(c)) return;
+        var pt = map.latLngToContainerPoint(c);
+        if (spacing > 0) {
+          var tooClose = occupied.some(function(o) {
+            var dx = o[0] - pt.x, dy = o[1] - pt.y;
+            return Math.sqrt(dx*dx + dy*dy) < spacing;
+          });
+          if (tooClose) return;
+          occupied.push([pt.x, pt.y]);
+        }
+        var text = plz3 + 'xx';
+        ctx.fillStyle = '#fff';
+        [[-1,-1],[1,-1],[-1,1],[1,1],[0,-1],[0,1],[-1,0],[1,0]].forEach(function(o) {
+          ctx.fillText(text, pt.x + o[0], pt.y + o[1]);
+        });
+        ctx.fillStyle = '#666';
+        ctx.fillText(text, pt.x, pt.y);
+      });
+    });
+    ctx.restore();
+  }
+
+  // City dots and names
+  var naturalThreshold = zoom <= 5 ? 500000 : zoom === 6 ? 200000 : zoom === 7 ? 100000 :
+    zoom === 8 ? 50000 : zoom === 9 ? 30000 : zoom === 10 ? 20000 : 0;
+  var cityThr = zoom >= 11 ? naturalThreshold : Math.max(naturalThreshold, cityMinPop);
+  STAEDTE.forEach(function(c) {
+    var lat = c[0], lon = c[1], name = c[2], pop = c[3];
+    var thr = cityThr;
+    if (isNRWArea(lat, lon)) {
+      var nrwThr = zoom <= 6 ? 500000 : zoom === 7 ? 250000 : zoom === 8 ? 150000 :
+        zoom === 9 ? 75000 : zoom === 10 ? 40000 : 0;
+      thr = Math.max(thr, nrwThr);
+    }
+    if (pop < thr) return;
+    var latlng = L.latLng(lat, lon);
+    if (!bounds.contains(latlng)) return;
+    var pt = map.latLngToContainerPoint(latlng);
+    if (pt.x < -20 || pt.x > canvas.width + 20 || pt.y < -20 || pt.y > canvas.height + 20) return;
+    var r = pop > 500000 ? 5 : pop > 100000 ? 4 : 3;
+    var fs = pop > 500000 ? 13 : pop > 100000 ? 11 : 10;
+    ctx.save();
+    ctx.fillStyle = '#2c3e50';
+    ctx.beginPath();
+    ctx.arc(pt.x, pt.y, r, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.font = '600 ' + fs + 'px Arial';
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'bottom';
+    var tx = pt.x + r + 3, ty = pt.y + 1;
+    ctx.fillStyle = '#fff';
+    [[-1,-1],[1,-1],[-1,1],[1,1],[0,-1],[0,1],[-1,0],[1,0]].forEach(function(o) {
+      ctx.fillText(name, tx + o[0], ty + o[1]);
+    });
+    ctx.fillStyle = '#2c3e50';
+    ctx.fillText(name, tx, ty);
+    ctx.restore();
+  });
+}
+
 function captureMapToCanvas() {
   return new Promise(function(resolve, reject) {
     var container = document.getElementById('map');
@@ -781,7 +866,6 @@ function captureMapToCanvas() {
     var ctx = canvas.getContext('2d');
     var mapRect = container.getBoundingClientRect();
 
-    // Draw all tile images using their real screen positions (bypasses Leaflet transform issues)
     var loadPromises = [];
     container.querySelectorAll('.leaflet-tile-pane img.leaflet-tile').forEach(function(tile) {
       if (!tile.src || tile.style.visibility === 'hidden') return;
@@ -804,9 +888,12 @@ function captureMapToCanvas() {
     });
 
     Promise.all(loadPromises).then(function() {
-      // Draw SVG overlay (polygon layer) at its actual screen position
       var svgEl = container.querySelector('.leaflet-overlay-pane svg');
-      if (!svgEl) { resolve(canvas); return; }
+      if (!svgEl) {
+        drawOverlayLabels(ctx, canvas);
+        resolve(canvas);
+        return;
+      }
       var svgRect = svgEl.getBoundingClientRect();
       var svgClone = svgEl.cloneNode(true);
       svgClone.setAttribute('xmlns', 'http://www.w3.org/2000/svg');
@@ -817,32 +904,36 @@ function captureMapToCanvas() {
         ctx.drawImage(img, Math.round(svgRect.left - mapRect.left), Math.round(svgRect.top - mapRect.top),
           Math.round(svgRect.width), Math.round(svgRect.height));
         URL.revokeObjectURL(url);
+        drawOverlayLabels(ctx, canvas);
         resolve(canvas);
       };
-      img.onerror = function() { URL.revokeObjectURL(url); resolve(canvas); };
+      img.onerror = function() { URL.revokeObjectURL(url); drawOverlayLabels(ctx, canvas); resolve(canvas); };
       img.src = url;
     }).catch(reject);
   });
 }
 
-function buildEmailCSVString() {
+function buildEmailCSVString(eigenePlzRef) {
   var pkName = {'r':'Preisklasse 3 (Rot)','y':'Preisklasse 2 (Gelb)','g':'Preisklasse 1 (Grün)','l':'Nicht buchbar (Lila)'};
   var keys = Object.keys(sel).sort();
-  var lines = ['PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Preisklasse'];
+  var header = 'PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Preisklasse' + (eigenePlzRef ? ';Entfernung_' + eigenePlzRef.plz + '_km' : '');
+  var lines = [header];
   keys.forEach(function(prefix) {
-    var pk = PREISKLASSEN[prefix] || '';
+    var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        lines.push(prefix+'xx;;;;'+pkLabel);
+        lines.push(prefix+'xx;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
       } else {
         matches.forEach(function(e) {
-          lines.push(prefix+'xx;'+e.plz+';'+e.ort+';'+e.bundesland+';'+e.einwohner+';'+pkLabel);
+          var ew = Math.round(parseInt(e.einwohner||0) / 1000) * 1000;
+          var distStr = eigenePlzRef ? (';' + Math.round(haversine(eigenePlzRef.lat, eigenePlzRef.lon, e.lat, e.lon))) : '';
+          lines.push(prefix+'xx;'+e.plz+';'+e.ort+';'+e.bundesland+';'+ew+';'+pkLabel+distStr);
         });
       }
     } else {
-      lines.push(prefix+'xx;;;;'+pkLabel);
+      lines.push(prefix+'xx;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
     }
   });
   return '﻿' + lines.join('\r\n');
@@ -874,8 +965,9 @@ function submitFormular() {
       statusEl.textContent = 'Bitte Vor-, Nachname und E-Mail-Adresse eingeben.';
       return;
     }
+    var telefon = (document.getElementById('fmTelefon').value||'').trim();
     emailSubject = 'Interessent: ' + vorname + ' ' + nachname + ' – ' + email;
-    senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email };
+    senderBlock = { type: 'interessent', vorname: vorname, nachname: nachname, email: email, telefon: telefon };
   } else {
     var kundennummer = (document.getElementById('fmKundennummer').value||'').trim();
     var vertragsnummer = (document.getElementById('fmVertragsnummer').value||'').trim();
@@ -888,6 +980,15 @@ function submitFormular() {
     senderBlock = { type: 'kunde', kundennummer: kundennummer, vertragsnummer: vertragsnummer };
   }
 
+  var epEl = document.getElementById('fmEigenePlz');
+  var eigenePlzVal = epEl ? epEl.value.replace(/\D/g,'').substring(0,5) : '';
+  var eigenePlzRef = null;
+  if (eigenePlzVal && plzDB) {
+    var ep = plzDB.find(function(e){ return e.plz === eigenePlzVal; });
+    if (ep) eigenePlzRef = { lat: ep.lat, lon: ep.lon, plz: eigenePlzVal };
+  }
+  if (eigenePlzRef) senderBlock.eigenePlz = eigenePlzRef.plz;
+
   if (Object.keys(sel).length === 0) {
     statusEl.style.color = '#e74c3c';
     statusEl.textContent = 'Bitte zuerst PLZ-Gebiete auswählen.';
@@ -899,7 +1000,6 @@ function submitFormular() {
   statusEl.textContent = '';
   statusEl.style.color = '';
 
-  // Zoom to selected PLZ areas
   var combinedBounds = null;
   for (var plz in sel) {
     var layer = allLayers[plz];
@@ -914,7 +1014,8 @@ function submitFormular() {
     map.fitBounds(combinedBounds, {padding: [60, 60], animate: false});
   }
 
-  captureMapToCanvas().then(function(canvas) {
+  setTimeout(function() {
+    captureMapToCanvas().then(function(canvas) {
       map.setView(origCenter, origZoom, {animate: false});
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
@@ -922,8 +1023,8 @@ function submitFormular() {
         emailSubject: emailSubject,
         senderBlock: senderBlock,
         mapImage: imgData,
-        csvString: buildEmailCSVString(),
-        csvTable: buildEmailCSVTable(),
+        csvString: buildEmailCSVString(eigenePlzRef),
+        csvTable: buildEmailCSVTable(eigenePlzRef),
         holidaySection: buildEmailHolidaySection(),
         plzCount: Object.keys(sel).length
       };
@@ -959,6 +1060,7 @@ function submitFormular() {
       statusEl.textContent = 'Screenshot-Fehler – bitte erneut versuchen.';
       console.error(err);
     });
+  }, 500);
 }
 
 
