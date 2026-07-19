@@ -795,55 +795,76 @@ function submitFormular() {
   statusEl.textContent = '';
   statusEl.style.color = '';
 
-  html2canvas(document.getElementById('map'), {
-    useCORS: true,
-    allowTaint: true,
-    scale: 1,
-    logging: false
-  }).then(function(canvas) {
-    btn.textContent = 'Wird gesendet…';
-    var imgData = canvas.toDataURL('image/jpeg', 0.75);
-    var payload = {
-      vorname: vorname,
-      nachname: nachname,
-      kundennummer: kunde,
-      vertragsnummer: vertrag,
-      mapImage: imgData,
-      csvTable: buildEmailCSVTable(),
-      holidaySection: buildEmailHolidaySection(),
-      plzCount: Object.keys(sel).length
-    };
-    fetch(SEND_EMAIL_API, {
-      method: 'POST',
-      headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify(payload)
-    })
-    .then(function(r){ return r.json(); })
-    .then(function(data){
-      btn.disabled = false;
-      btn.textContent = 'Auswahl senden';
-      if (data.ok) {
-        statusEl.style.color = '#27ae60';
-        statusEl.textContent = 'Erfolgreich gesendet!';
-      } else {
+  // Zoom to selected PLZ areas
+  var combinedBounds = null;
+  for (var plz in sel) {
+    var layer = allLayers[plz];
+    if (layer) {
+      var b = layer.getBounds();
+      combinedBounds = combinedBounds ? combinedBounds.extend(b) : b;
+    }
+  }
+  var origCenter = map.getCenter();
+  var origZoom = map.getZoom();
+  if (combinedBounds) {
+    map.fitBounds(combinedBounds, {padding: [60, 60], animate: false});
+  }
+  // Reset Leaflet's internal pan offset so html2canvas captures polygons at correct positions
+  map.setView(map.getCenter(), map.getZoom(), {reset: true, animate: false});
+
+  setTimeout(function() {
+    html2canvas(document.getElementById('map'), {
+      useCORS: true,
+      allowTaint: true,
+      scale: 1,
+      logging: false
+    }).then(function(canvas) {
+      map.setView(origCenter, origZoom, {animate: false});
+      btn.textContent = 'Wird gesendet…';
+      var imgData = canvas.toDataURL('image/jpeg', 0.75);
+      var payload = {
+        vorname: vorname,
+        nachname: nachname,
+        kundennummer: kunde,
+        vertragsnummer: vertrag,
+        mapImage: imgData,
+        csvTable: buildEmailCSVTable(),
+        holidaySection: buildEmailHolidaySection(),
+        plzCount: Object.keys(sel).length
+      };
+      fetch(SEND_EMAIL_API, {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify(payload)
+      })
+      .then(function(r){ return r.json(); })
+      .then(function(data){
+        btn.disabled = false;
+        btn.textContent = 'Auswahl senden';
+        if (data.ok) {
+          statusEl.style.color = '#27ae60';
+          statusEl.textContent = 'Erfolgreich gesendet!';
+        } else {
+          statusEl.style.color = '#e74c3c';
+          statusEl.textContent = 'Fehler: ' + (data.error||'Unbekannter Fehler');
+        }
+      })
+      .catch(function(err){
+        btn.disabled = false;
+        btn.textContent = 'Auswahl senden';
         statusEl.style.color = '#e74c3c';
-        statusEl.textContent = 'Fehler: ' + (data.error||'Unbekannter Fehler');
-      }
-    })
-    .catch(function(err){
+        statusEl.textContent = 'Netzwerkfehler – bitte erneut versuchen.';
+        console.error(err);
+      });
+    }).catch(function(err){
+      map.setView(origCenter, origZoom, {animate: false});
       btn.disabled = false;
       btn.textContent = 'Auswahl senden';
       statusEl.style.color = '#e74c3c';
-      statusEl.textContent = 'Netzwerkfehler – bitte erneut versuchen.';
+      statusEl.textContent = 'Screenshot-Fehler – bitte erneut versuchen.';
       console.error(err);
     });
-  }).catch(function(err){
-    btn.disabled = false;
-    btn.textContent = 'Auswahl senden';
-    statusEl.style.color = '#e74c3c';
-    statusEl.textContent = 'Screenshot-Fehler – bitte erneut versuchen.';
-    console.error(err);
-  });
+  }, 400);
 }
 
 renderCalendar();
