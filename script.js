@@ -782,7 +782,7 @@ function buildEmailCSVTable(eigenePlzRef) {
 }
 
 function buildEmailHolidaySection() {
-  var year = new Date().getFullYear();
+  var thisYear = new Date().getFullYear();
   var stateNames = {
     'BW':'Baden-Württemberg','BY':'Bayern','BE':'Berlin','BB':'Brandenburg','HB':'Bremen',
     'HH':'Hamburg','HE':'Hessen','MV':'Mecklenburg-Vorpommern','NI':'Niedersachsen',
@@ -797,10 +797,17 @@ function buildEmailHolidaySection() {
   var stateCodes = Object.keys(statesInSel).sort();
   if (stateCodes.length === 0) return '<p>Keine Bundeslanddaten verfügbar.</p>';
   var h = '';
-  stateCodes.forEach(function(st) {
-    var holStr = getHolidaysForState(st, year);
-    if (!holStr) return;
-    h += '<p style="margin:6px 0;"><strong>'+(stateNames[st]||st)+':</strong><br>'+holStr.replace(/; /g,'<br>')+'</p>';
+  [thisYear, thisYear + 1].forEach(function(year) {
+    var yearHtml = '';
+    stateCodes.forEach(function(st) {
+      var holStr = getHolidaysForState(st, year);
+      if (!holStr) return;
+      yearHtml += '<p style="margin:6px 0;"><strong>'+(stateNames[st]||st)+':</strong><br>'+holStr.replace(/; /g,'<br>')+'</p>';
+    });
+    if (yearHtml) {
+      h += '<h3 style="color:#642d7b;margin:16px 0 6px;border-bottom:1px solid #e4d4ec;padding-bottom:4px;">Feiertage ' + year + '</h3>';
+      h += yearHtml;
+    }
   });
   return h || '<p>Keine Feiertage für die ausgewählten Bundesländer.</p>';
 }

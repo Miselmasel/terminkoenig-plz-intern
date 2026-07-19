@@ -74,7 +74,7 @@ ${base64Data
 ${csvTable || '<p>Keine Daten.</p>'}
 </div>
 
-<h2>Regionale Feiertage ${new Date().getFullYear()}</h2>
+<h2>Regionale Feiertage</h2>
 ${holidaySection || '<p>Keine Feiertags-Daten.</p>'}
 
 <hr style="margin-top:32px;border:none;border-top:1px solid #e4d4ec;">
