@@ -8,7 +8,7 @@ module.exports = async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ ok: false, error: 'Method not allowed' });
 
-  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount, fileBase } = req.body || {};
+  const { emailSubject, senderBlock, mapImage, csvString, csvTable, holidaySection, plzCount, betriebeTotal, fileBase } = req.body || {};
   const baseName = (fileBase || ('auswahl_' + new Date().toISOString().split('T')[0])).replace(/[^a-zA-Z0-9äöüÄÖÜß_\-]/g, '_');
 
   if (!emailSubject || !senderBlock) {
@@ -61,6 +61,7 @@ module.exports = async function handler(req, res) {
     ${senderBlock.eigenePlz ? `<tr><td>Eigene PLZ:</td><td>${senderBlock.eigenePlz}</td></tr>` : ''}
     <tr><td>Datum / Uhrzeit:</td><td>${now}</td></tr>
     <tr><td>Anzahl PLZ-Bereiche:</td><td>${plzCount}</td></tr>
+    ${betriebeTotal ? `<tr><td>Betriebe ca.:</td><td>${Number(betriebeTotal).toLocaleString('de-DE')}</td></tr>` : ''}
   </table>
 </div>
 
@@ -87,7 +88,7 @@ ${holidaySection || '<p>Keine Feiertags-Daten.</p>'}
   const mailOptions = {
     from: `"Terminkönig PLZ-Karte" <${process.env.SMTP_FROM || process.env.SMTP_USER}>`,
     to: process.env.EMAIL_TO,
-    subject: `PLZ-Auswahl [${emailSubject}] (${plzCount} Bereiche) – ${now}`,
+    subject: `PLZ-Auswahl [${emailSubject}] (${plzCount} Bereiche${betriebeTotal ? ', ca. ' + Number(betriebeTotal).toLocaleString('de-DE') + ' Betriebe' : ''}) – ${now}`,
     html: emailHtml,
     attachments: [
       ...(base64Data ? [{

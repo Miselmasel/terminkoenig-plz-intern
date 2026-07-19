@@ -22,6 +22,11 @@ var eigenePlzScreenshotRef = null;
 var GEO_URL =
   "https://gist.githubusercontent.com/fegoa89/edcd647f95ac4d21e48cacafcc722314/raw/plz-3stellig.geojson";
 var SEL_COLOR = "#e4d4ec";
+var plzBusinesses = {}; // PLZ3 -> { est, pop, ags }
+fetch('data/plz3_businesses.json')
+  .then(function(r) { return r.json(); })
+  .then(function(d) { plzBusinesses = d; })
+  .catch(function(e) { console.warn('Betriebsdaten nicht geladen:', e); });
 var plzDB = null;
 fetch('https://raw.githubusercontent.com/Miselmasel/PLZ-Datenbank/main/webtools/plz-umkreissuche/data/plz_umkreisdaten.json')
   .then(function(r){return r.json();})
@@ -108,6 +113,13 @@ function onEachFeature(feature, layer) {
   } catch (e) {
     centroids[plz3] = [layer.getBounds().getCenter()];
   }
+  layer.bindTooltip(function(l) {
+    var p = l.feature.properties.plz;
+    var b = plzBusinesses[p];
+    var txt = p + "xx";
+    if (b && b.est) txt += "<br><small>ca. " + b.est.toLocaleString("de-DE") + " Betriebe</small>";
+    return txt;
+  }, { sticky: true, direction: "top", opacity: 0.88 });
   layer.on("click", function () {
     togglePLZ(plz3);
   });
@@ -221,6 +233,10 @@ function updateSidebar() {
   var keys = Object.keys(sel).sort();
   var acEl = document.getElementById("ac");
   if (acEl) acEl.querySelector("span:nth-child(2)").textContent = keys.length;
+  var totalBetriebe = 0;
+  keys.forEach(function(p) { if (plzBusinesses[p]) totalBetriebe += plzBusinesses[p].est; });
+  var betrEl = document.getElementById("totalBetriebe");
+  if (betrEl) betrEl.textContent = totalBetriebe > 0 ? "ca. " + totalBetriebe.toLocaleString("de-DE") + " Betriebe" : "";
   var al = document.getElementById("al");
   if (al) {
     al.innerHTML = "";
@@ -406,24 +422,25 @@ function exportCSV() {
     var ep = plzDB.find(function(e){ return e.plz === eigenePlzVal; });
     if (ep) eigenePlzRef = { lat: ep.lat, lon: ep.lon, plz: eigenePlzVal };
   }
-  var header = '﻿PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Preisklasse' + (eigenePlzRef ? ';Entfernung_' + eigenePlzRef.plz + '_km' : '');
+  var header = '﻿PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Betriebe_ca;Preisklasse' + (eigenePlzRef ? ';Entfernung_' + eigenePlzRef.plz + '_km' : '');
   var lines = [header];
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
+    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est : '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        lines.push(prefix+'xx;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
+        lines.push(prefix+'xx;;;;'+betr+';'+pkLabel+(eigenePlzRef ? ';' : ''));
       } else {
         matches.forEach(function(e){
           var ew = Math.round(parseInt(e.einwohner||0) / 1000) * 1000;
           var distStr = eigenePlzRef ? (';' + Math.round(haversine(eigenePlzRef.lat, eigenePlzRef.lon, e.lat, e.lon))) : '';
-          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,ew,pkLabel].join(';') + distStr);
+          lines.push([prefix+'xx',e.plz,e.ort,e.bundesland,ew,betr,pkLabel].join(';') + distStr);
         });
       }
     } else {
-      lines.push(prefix+'xx;(DB nicht geladen);;;'+pkLabel+(eigenePlzRef ? ';' : ''));
+      lines.push(prefix+'xx;(DB nicht geladen);;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
     }
   });
   dlFile("auswahl.csv", lines.join("\n"), "text/csv");
@@ -675,7 +692,7 @@ function toggleBundeslaender() {
 }
 
 // ===== Overlay: Landkreise =====
-var LK_GEO_URL = "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/4_kreise/3_mittel.geo.json";
+var LK_GEO_URL = "https://raw.githubusercontent.com/isellsoap/deutschlandGeoJSON/main/4_kreise/1_sehr_hoch.geo.json";
 var lkGroup = L.layerGroup();
 var lkLabelGroup = L.layerGroup();
 var lkVisible = false;
@@ -683,6 +700,7 @@ var lkLoaded = false;
 
 map.createPane("lkPane");
 map.getPane("lkPane").style.zIndex = 410;
+map.getPane("lkPane").style.pointerEvents = "none"; // PLZ3-Polygone darunter bleiben immer klickbar
 
 var LK_HUES = [25, 160, 200, 50, 290, 340, 180, 70];
 var LK_LABEL_MIN_ZOOM = 9;
@@ -715,23 +733,8 @@ function loadLandkreise() {
         var name = f.properties.GEN || f.properties.NAME_3 || f.properties.name || "";
         var poly = L.geoJSON(f, {
           pane: "lkPane",
-          style: function () { return { fillColor: lkColor(i), fillOpacity: 0.5, color: "#555", weight: 0.8 }; }
-        });
-        poly.bindTooltip(name || "Landkreis", { sticky: true, direction: "top", opacity: 0.9 });
-        poly.on("mouseover", function (e) { e.target.setStyle({ fillOpacity: 0.75 }); });
-        poly.on("mouseout",  function (e) { e.target.setStyle({ fillOpacity: 0.5 }); });
-        poly.on("click", function (e) {
-          L.DomEvent.stopPropagation(e);
-          Object.keys(allLayers).forEach(function (p3) {
-            try {
-              var ctr = allLayers[p3].getBounds().getCenter();
-              if (turf.booleanPointInPolygon(turf.point([ctr.lng, ctr.lat]), f)) {
-                sel[p3] = true;
-                refreshLayer(p3);
-              }
-            } catch (err) {}
-          });
-          updateSidebar();
+          interactive: false, // Klicks gehen durch zur PLZ3-Ebene darunter
+          style: function () { return { fillOpacity: 0, color: "#555", weight: 1.4 }; }
         });
         poly.addTo(lkGroup);
         if (name) {
@@ -916,28 +919,29 @@ function buildEmailCSVTable(eigenePlzRef) {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkCell = pk ? '<span style="background:' + pkColors[pk] + ';color:#fff;padding:1px 5px;border-radius:3px;font-size:10px;white-space:nowrap;">' + pkFull[pk] + '</span>' : '';
+    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est.toLocaleString('de-DE') : '–';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        var row = [prefix+'xx','','','','',pkCell];
+        var row = [prefix+'xx','','','','',betr,pkCell];
         if (eigenePlzRef) row.push('');
         rows.push(row);
       } else {
         matches.forEach(function(e){
           var ew = Math.round(parseInt(e.einwohner||0) / 1000) * 1000;
-          var row = [prefix+'xx', e.plz, e.ort, e.bundesland, ew.toLocaleString('de-DE'), pkCell];
+          var row = [prefix+'xx', e.plz, e.ort, e.bundesland, ew.toLocaleString('de-DE'), betr, pkCell];
           if (eigenePlzRef) row.push(Math.round(haversine(eigenePlzRef.lat, eigenePlzRef.lon, e.lat, e.lon)) + ' km');
           rows.push(row);
         });
       }
     } else {
-      var row = [prefix+'xx','–','–','–','–',pkCell];
+      var row = [prefix+'xx','–','–','–','–','–',pkCell];
       if (eigenePlzRef) row.push('');
       rows.push(row);
     }
   });
   var h = '<table border="1" cellpadding="4" cellspacing="0" style="border-collapse:collapse;font-size:11px;width:100%;min-width:600px;">';
-  h += '<tr style="background:#642d7b;color:#fff;"><th>PLZ-Bereich</th><th>PLZ</th><th>Ort</th><th>Bundesland</th><th>Einwohner ca.</th><th>Preisklasse</th>';
+  h += '<tr style="background:#642d7b;color:#fff;"><th>PLZ-Bereich</th><th>PLZ</th><th>Ort</th><th>Bundesland</th><th>Einwohner ca.</th><th>Betriebe ca.</th><th>Preisklasse</th>';
   if (eigenePlzRef) h += '<th>Entfernung von ' + eigenePlzRef.plz + ' (km)</th>';
   h += '</tr>';
   rows.forEach(function(r) {
@@ -1170,24 +1174,25 @@ function captureMapToCanvas() {
 function buildEmailCSVString(eigenePlzRef) {
   var pkName = {'r':'Preisklasse 3 (Rot)','y':'Preisklasse 2 (Gelb)','g':'Preisklasse 1 (Grün)','l':'Nicht buchbar (Lila)'};
   var keys = Object.keys(sel).sort();
-  var header = 'PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Preisklasse' + (eigenePlzRef ? ';Entfernung_' + eigenePlzRef.plz + '_km' : '');
+  var header = 'PLZ-Bereich;PLZ;Ort;Bundesland;Einwohner;Betriebe_ca;Preisklasse' + (eigenePlzRef ? ';Entfernung_' + eigenePlzRef.plz + '_km' : '');
   var lines = [header];
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
+    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est : '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
-        lines.push(prefix+'xx;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
+        lines.push(prefix+'xx;;;;'+betr+';'+pkLabel+(eigenePlzRef ? ';' : ''));
       } else {
         matches.forEach(function(e) {
           var ew = Math.round(parseInt(e.einwohner||0) / 1000) * 1000;
           var distStr = eigenePlzRef ? (';' + Math.round(haversine(eigenePlzRef.lat, eigenePlzRef.lon, e.lat, e.lon))) : '';
-          lines.push(prefix+'xx;'+e.plz+';'+e.ort+';'+e.bundesland+';'+ew+';'+pkLabel+distStr);
+          lines.push(prefix+'xx;'+e.plz+';'+e.ort+';'+e.bundesland+';'+ew+';'+betr+';'+pkLabel+distStr);
         });
       }
     } else {
-      lines.push(prefix+'xx;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
+      lines.push(prefix+'xx;;;;;'+pkLabel+(eigenePlzRef ? ';' : ''));
     }
   });
   return '﻿' + lines.join('\r\n');
@@ -1305,6 +1310,8 @@ function submitFormular() {
       map.setView(origCenter, origZoom, {animate: false});
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
+      var betriebeTotal = 0;
+      Object.keys(sel).forEach(function(p) { if (plzBusinesses[p]) betriebeTotal += plzBusinesses[p].est; });
       var payload = {
         emailSubject: emailSubject,
         senderBlock: senderBlock,
@@ -1313,6 +1320,7 @@ function submitFormular() {
         csvTable: buildEmailCSVTable(eigenePlzRef),
         holidaySection: buildEmailHolidaySection(),
         plzCount: Object.keys(sel).length,
+        betriebeTotal: betriebeTotal,
         fileBase: fileBase
       };
       fetch(SEND_EMAIL_API, {
