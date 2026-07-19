@@ -445,7 +445,19 @@ var LEGAL_CONTENT = {
     '<p>Tel: <a href="tel:01638989878">0163 8989878</a><br>' +
     'E-Mail: <a href="mailto:info@plz-vertriebsplaner.de">info@plz-vertriebsplaner.de</a></p>' +
     '<h3>Verantwortlich für den Inhalt</h3>' +
-    '<p>Manuel Schröder, SE-Design – Schröder Onlinemarketing</p>',
+    '<p>Sabine Schröder, SE-Design – Schröder Onlinemarketing</p>' +
+    '<hr style="border:none;border-top:1px solid #e4d4ec;margin:14px 0">' +
+    '<h2>Haftungsausschluss</h2>' +
+    '<h3>Haftung für Inhalte</h3>' +
+    '<p>Die Inhalte dieser Anwendung wurden mit größtmöglicher Sorgfalt erstellt. Für die Richtigkeit, Vollständigkeit und Aktualität der Inhalte wird jedoch keine Gewähr übernommen. Als Diensteanbieter sind wir gemäß § 7 Abs. 1 TMG für eigene Inhalte nach den allgemeinen Gesetzen verantwortlich. Nach §§ 8 bis 10 TMG sind wir jedoch nicht verpflichtet, übermittelte oder gespeicherte fremde Informationen zu überwachen.</p>' +
+    '<h3>Haftung für Kartendaten</h3>' +
+    '<p>Die dargestellten Kartendaten, PLZ-Gebiete und Einwohnerzahlen basieren auf Drittquellen (OpenStreetMap, amtliche Geobasis-Daten). Trotz sorgfältiger Prüfung übernehmen wir keine Haftung für die Richtigkeit, Vollständigkeit oder Aktualität dieser Daten. Die Nutzung der Daten erfolgt auf eigene Gefahr.</p>' +
+    '<h3>Haftung für Links</h3>' +
+    '<p>Diese Anwendung kann Links zu externen Webseiten Dritter enthalten. Auf deren Inhalte haben wir keinen Einfluss. Für die Inhalte der verlinkten Seiten ist stets der jeweilige Anbieter oder Betreiber verantwortlich. Eine permanente inhaltliche Kontrolle der verlinkten Seiten ist ohne konkrete Anhaltspunkte einer Rechtsverletzung nicht zumutbar.</p>' +
+    '<h3>Urheberrecht</h3>' +
+    '<p>Die durch den Anbieter erstellten Inhalte und Werke in dieser Anwendung unterliegen dem deutschen Urheberrecht. Die Vervielfältigung, Bearbeitung, Verbreitung und jede Art der Verwertung außerhalb der Grenzen des Urheberrechts bedürfen der schriftlichen Zustimmung des jeweiligen Urhebers. Downloads und Kopien sind nur für den privaten, nicht kommerziellen Gebrauch gestattet.</p>' +
+    '<h3>Datenschutz</h3>' +
+    '<p>Diese Anwendung erhebt und verarbeitet personenbezogene Daten (Name, E-Mail-Adresse, ggf. Telefonnummer) ausschließlich zur Übermittlung der PLZ-Auswahl an den Auftraggeber. Die Daten werden nicht an Dritte weitergegeben und nicht über den Zweck der Übermittlung hinaus gespeichert. Es gelten die Bestimmungen der DSGVO.</p>',
 
   disclaimer: '<h2>Nutzungshinweis</h2>' +
     '<p>Die <strong>Terminkönig PLZ-Karte</strong> ist ein exklusiv entwickeltes Tool und steht ausschließlich zur Nutzung durch:</p>' +
