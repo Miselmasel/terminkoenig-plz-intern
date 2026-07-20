@@ -453,6 +453,16 @@
         <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Notizen</div>
         <textarea id="cmNotizen" placeholder="Interne Notizen…" rows="2" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:12px;font-family:Arial,sans-serif;resize:vertical;box-sizing:border-box;margin:0;"></textarea>
       </div>
+
+      <div id="cmDocsSection" style="display:none;">
+        <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:4px;">Dokumente <span style="font-weight:normal;text-transform:none;font-size:9px;">(XLS, XLSX, CSV, PDF · max. 10 MB)</span></div>
+        <div id="cmDocList" style="margin-bottom:6px;min-height:18px;"></div>
+        <div style="display:flex;gap:4px;align-items:center;">
+          <input type="file" id="cmDocFile" accept=".xls,.xlsx,.csv,.pdf" style="flex:1;min-width:0;font-size:11px;margin:0;">
+          <button onclick="uploadContactDocument()" style="white-space:nowrap;width:auto;margin:0;background:#642d7b;color:#fff;border:none;border-radius:3px;padding:5px 9px;font-size:11px;cursor:pointer;flex-shrink:0;">&#x2B06; Hochladen</button>
+        </div>
+        <div id="cmDocMsg" style="font-size:10px;margin-top:3px;min-height:12px;color:#642d7b;"></div>
+      </div>
     </div>
 
     <div style="display:flex;gap:6px;margin-top:14px;">
@@ -467,6 +477,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=2"></script>
-<script src="admin.js?v=8"></script>
+<script src="admin.js?v=9"></script>
 </body>
 </html>

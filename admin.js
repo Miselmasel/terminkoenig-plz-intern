@@ -1140,6 +1140,23 @@ function openContactForm(contact) {
 
   updateBlDropdown();
   document.getElementById('cmMsg').textContent = '';
+
+  var docsSection = document.getElementById('cmDocsSection');
+  if (docsSection) {
+    var cmDocFile = document.getElementById('cmDocFile');
+    var cmDocMsg  = document.getElementById('cmDocMsg');
+    var cmDocList = document.getElementById('cmDocList');
+    if (cmDocFile) cmDocFile.value = '';
+    if (cmDocMsg)  cmDocMsg.textContent = '';
+    if (cmDocList) cmDocList.innerHTML = '';
+    if (contact && contact.id) {
+      docsSection.style.display = '';
+      loadContactDocuments(contact.id);
+    } else {
+      docsSection.style.display = 'none';
+    }
+  }
+
   document.getElementById('contactModal').style.display = 'flex';
   setTimeout(function() { document.getElementById('cmSuchbegriff').focus(); }, 50);
 }
@@ -1358,6 +1375,70 @@ async function executeDeleteUser() {
   } catch(e) {
     alert('Server nicht erreichbar.');
   }
+}
+
+// ─── Dokumente ────────────────────────────────────────────────────
+async function loadContactDocuments(contactId) {
+  var list = document.getElementById('cmDocList');
+  if (!list) return;
+  list.innerHTML = '<span style="color:#aaa;font-size:10px;">Lädt…</span>';
+  try {
+    var res  = await fetch('api/documents.php?contact_id=' + contactId);
+    var docs = await res.json();
+    if (!Array.isArray(docs) || !docs.length) {
+      list.innerHTML = '<span style="color:#bbb;font-size:10px;">Keine Dokumente vorhanden.</span>';
+      return;
+    }
+    list.innerHTML = docs.map(function(d) {
+      var kb      = Math.ceil(d.file_size / 1024);
+      var sizeStr = kb >= 1024 ? (Math.round(kb / 102.4) / 10) + ' MB' : kb + ' KB';
+      return '<div style="display:flex;align-items:center;gap:4px;padding:3px 0;border-bottom:1px solid #f0e8f8;">' +
+        '<span style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:11px;" title="' + esc(d.original_name) + '">' + esc(d.original_name) + '</span>' +
+        '<span style="color:#aaa;font-size:10px;white-space:nowrap;flex-shrink:0;">' + esc(sizeStr) + '</span>' +
+        '<a href="api/documents.php?id=' + d.id + '&action=download" target="_blank" ' +
+          'style="color:#642d7b;font-size:10px;white-space:nowrap;text-decoration:none;background:#ede0f7;padding:2px 6px;border-radius:2px;flex-shrink:0;" title="Herunterladen">&#x2B07;</a>' +
+        '<button onclick="deleteDocument(' + d.id + ')" title="Löschen" ' +
+          'style="background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px;padding:0 2px;width:auto;flex-shrink:0;line-height:1;">&#x2715;</button>' +
+      '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<span style="color:#e74c3c;font-size:10px;">Fehler beim Laden.</span>';
+  }
+}
+
+async function uploadContactDocument() {
+  var fileInput = document.getElementById('cmDocFile');
+  var msg       = document.getElementById('cmDocMsg');
+  if (!fileInput || !fileInput.files.length) {
+    msg.style.color = '#e74c3c'; msg.textContent = 'Bitte Datei auswählen.'; return;
+  }
+  if (!currentContactId) return;
+  var fd = new FormData();
+  fd.append('contact_id', currentContactId);
+  fd.append('file', fileInput.files[0]);
+  msg.style.color = '#888'; msg.textContent = 'Wird hochgeladen…';
+  try {
+    var res  = await fetch('api/documents.php', { method: 'POST', body: fd });
+    var data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#27ae60'; msg.textContent = '&#x2713; Hochgeladen.';
+      fileInput.value = '';
+      await loadContactDocuments(currentContactId);
+      setTimeout(function() { if (msg) msg.textContent = ''; }, 2500);
+    } else {
+      msg.style.color = '#e74c3c'; msg.textContent = data.error || 'Upload fehlgeschlagen.';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c'; msg.textContent = 'Server nicht erreichbar.';
+  }
+}
+
+async function deleteDocument(id) {
+  if (!confirm('Dokument löschen?')) return;
+  try {
+    await fetch('api/documents.php?id=' + id, { method: 'DELETE' });
+    if (currentContactId) await loadContactDocuments(currentContactId);
+  } catch(e) { console.warn('Dokument löschen fehlgeschlagen:', e); }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────
