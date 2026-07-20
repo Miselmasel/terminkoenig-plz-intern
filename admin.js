@@ -37,6 +37,61 @@ async function doLogout() {
   location.href = 'login.html';
 }
 
+function openChangePassword() {
+  var m = document.getElementById('changePwModal');
+  document.getElementById('cpOld').value  = '';
+  document.getElementById('cpNew').value  = '';
+  document.getElementById('cpNew2').value = '';
+  document.getElementById('changePwErr').style.display = 'none';
+  document.getElementById('changePwOk').style.display  = 'none';
+  document.getElementById('cpSaveBtn').disabled = false;
+  m.style.display = 'flex';
+  document.getElementById('cpOld').focus();
+}
+
+function closeChangePassword() {
+  document.getElementById('changePwModal').style.display = 'none';
+}
+
+async function doChangePassword() {
+  var old  = document.getElementById('cpOld').value;
+  var nw   = document.getElementById('cpNew').value;
+  var nw2  = document.getElementById('cpNew2').value;
+  var errEl = document.getElementById('changePwErr');
+  var okEl  = document.getElementById('changePwOk');
+  var btn   = document.getElementById('cpSaveBtn');
+
+  errEl.style.display = 'none';
+  okEl.style.display  = 'none';
+
+  if (!old) { errEl.textContent = 'Bitte aktuelles Passwort eingeben.'; errEl.style.display = ''; return; }
+  if (nw.length < 8) { errEl.textContent = 'Neues Passwort muss mindestens 8 Zeichen lang sein.'; errEl.style.display = ''; return; }
+  if (nw !== nw2) { errEl.textContent = 'Die neuen Passwörter stimmen nicht überein.'; errEl.style.display = ''; return; }
+
+  btn.disabled = true; btn.textContent = 'Bitte warten…';
+  try {
+    var res  = await fetch('api/auth.php?action=change-password', {
+      method: 'POST', headers: {'Content-Type':'application/json'},
+      body: JSON.stringify({old_password: old, new_password: nw})
+    });
+    var data = await res.json();
+    if (data.ok) {
+      okEl.style.display = '';
+      document.getElementById('cpOld').value  = '';
+      document.getElementById('cpNew').value  = '';
+      document.getElementById('cpNew2').value = '';
+      setTimeout(closeChangePassword, 1800);
+    } else {
+      errEl.textContent = data.error || 'Fehler beim Ändern des Passworts.';
+      errEl.style.display = '';
+    }
+  } catch(e) {
+    errEl.textContent = 'Server nicht erreichbar.';
+    errEl.style.display = '';
+  }
+  btn.disabled = false; btn.textContent = 'Speichern';
+}
+
 // ─── Panel-Toggles ────────────────────────────────────────────────
 function toggleLP() {
   var col = document.body.classList.toggle('lp-col');

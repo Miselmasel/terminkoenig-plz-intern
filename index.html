@@ -22,7 +22,10 @@
 
   <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
     <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
-    <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
+    <div style="display:flex;gap:4px;">
+      <button class="bk" onclick="openChangePassword()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Passwort ändern">🔑</button>
+      <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
+    </div>
   </div>
 
   <!-- Gebietsstatus -->
@@ -259,6 +262,28 @@
   <div id="legal-box" onclick="event.stopPropagation()">
     <button id="legal-close" onclick="closeLegal()">✕</button>
     <div id="legal-content"></div>
+  </div>
+</div>
+
+<!-- Passwort-ändern-Modal -->
+<div id="changePwModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9500;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:6px;padding:20px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:Arial,sans-serif;font-size:13px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
+      <h2 style="margin:0;font-size:14px;color:#642d7b;">Passwort ändern</h2>
+      <button onclick="closeChangePassword()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#642d7b;padding:0;line-height:1;">✕</button>
+    </div>
+    <div id="changePwErr" style="display:none;background:#fdecea;border:1px solid #e74c3c;color:#c0392b;border-radius:4px;padding:7px 10px;font-size:12px;margin-bottom:12px;"></div>
+    <div id="changePwOk" style="display:none;background:#eaf7ee;border:1px solid #7bc87b;color:#276727;border-radius:4px;padding:7px 10px;font-size:12px;margin-bottom:12px;">✓ Passwort erfolgreich geändert.</div>
+    <label style="display:block;font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;margin-bottom:3px;">Aktuelles Passwort</label>
+    <input type="password" id="cpOld" style="width:100%;padding:7px 9px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
+    <label style="display:block;font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;margin-bottom:3px;">Neues Passwort</label>
+    <input type="password" id="cpNew" placeholder="Mindestens 8 Zeichen" style="width:100%;padding:7px 9px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:10px;box-sizing:border-box;">
+    <label style="display:block;font-size:11px;font-weight:bold;color:#555;text-transform:uppercase;margin-bottom:3px;">Neues Passwort bestätigen</label>
+    <input type="password" id="cpNew2" style="width:100%;padding:7px 9px;border:1px solid #ccc;border-radius:4px;font-size:13px;margin-bottom:14px;box-sizing:border-box;">
+    <div style="display:flex;gap:6px;">
+      <button class="bb" id="cpSaveBtn" onclick="doChangePassword()" style="flex:1;margin:0;">Speichern</button>
+      <button class="bk" onclick="closeChangePassword()" style="flex:1;margin:0;">Abbrechen</button>
+    </div>
   </div>
 </div>
 
