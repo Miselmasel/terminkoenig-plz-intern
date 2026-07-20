@@ -1118,7 +1118,7 @@ function renderUserList() {
       : '';
     var delBtn = u.role !== 'admin'
       ? '<button onclick="deleteUserConfirm(' + u.id + ')" title="Löschen" ' +
-        'style="flex-shrink:0;background:#c0392b;color:#fff;border:none;border-radius:3px;' +
+        'style="flex-shrink:0;width:auto;background:#c0392b;color:#fff;border:none;border-radius:3px;' +
         'padding:2px 7px;font-size:11px;cursor:pointer;line-height:1.5;">✕</button>'
       : '';
     return '<div style="border-bottom:1px solid #e4d4ec;padding:5px 0;display:flex;align-items:center;gap:6px;">' +
@@ -1181,12 +1181,45 @@ async function sendInvite() {
   }
 }
 
-async function deleteUserConfirm(id) {
+var _deleteUserId    = null;
+var _deleteUserMath  = 0;
+
+function deleteUserConfirm(id) {
   var u     = allUsers.find(function(x) { return x.id == id; });
-  var label = u ? (u.name || u.email) : 'diesen Benutzer';
-  if (!confirm('Benutzer "' + label + '" wirklich löschen?')) return;
+  var label = u ? (u.name || u.email || u.username) : '—';
+  _deleteUserId = id;
+
+  var a = Math.floor(Math.random() * 8) + 2;
+  var b = Math.floor(Math.random() * 8) + 2;
+  _deleteUserMath = a + b;
+
+  document.getElementById('delConfirmLabel').textContent = label;
+  document.getElementById('delConfirmMath').textContent  = a + ' + ' + b + ' =';
+  document.getElementById('delConfirmInput').value       = '';
+  document.getElementById('delConfirmErr').style.display = 'none';
+  document.getElementById('delConfirmModal').style.display = 'flex';
+  document.getElementById('delConfirmInput').focus();
+}
+
+function closeDeleteConfirm() {
+  document.getElementById('delConfirmModal').style.display = 'none';
+  _deleteUserId = null;
+}
+
+async function executeDeleteUser() {
+  var val = parseInt(document.getElementById('delConfirmInput').value, 10);
+  var err = document.getElementById('delConfirmErr');
+  if (val !== _deleteUserMath) {
+    err.textContent    = 'Falsch – bitte nochmal rechnen.';
+    err.style.display  = '';
+    document.getElementById('delConfirmInput').value = '';
+    document.getElementById('delConfirmInput').focus();
+    return;
+  }
+  var idToDelete = _deleteUserId;
+  closeDeleteConfirm();
   try {
-    var res  = await fetch('api/users.php?id=' + id, { method: 'DELETE' });
+    var res  = await fetch('api/users.php?id=' + idToDelete, { method: 'DELETE' });
     var data = await res.json();
     if (data.ok) {
       loadUsers();

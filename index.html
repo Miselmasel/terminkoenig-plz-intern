@@ -278,6 +278,31 @@
   </div>
 </div>
 
+<!-- Benutzer-Löschen-Bestätigung -->
+<div id="delConfirmModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9600;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:6px;padding:20px;max-width:320px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:Arial,sans-serif;font-size:13px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h2 style="margin:0;font-size:14px;color:#c0392b;">Benutzer löschen</h2>
+      <button onclick="closeDeleteConfirm()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#642d7b;padding:0;line-height:1;width:auto;">✕</button>
+    </div>
+    <p style="margin:0 0 14px;font-size:12px;color:#555;">
+      Benutzer <strong id="delConfirmLabel"></strong> wird unwiderruflich gelöscht.
+    </p>
+    <div style="background:#fdecea;border:1px solid #e74c3c;border-radius:4px;padding:10px 12px;margin-bottom:12px;text-align:center;">
+      <div style="font-size:11px;color:#c0392b;margin-bottom:6px;">Sicherheitsabfrage – Ergebnis eingeben:</div>
+      <div style="font-size:20px;font-weight:bold;color:#c0392b;letter-spacing:2px;" id="delConfirmMath"></div>
+    </div>
+    <input type="number" id="delConfirmInput" placeholder="Ergebnis" min="0"
+           style="text-align:center;font-size:18px;letter-spacing:2px;margin-bottom:8px;"
+           onkeydown="if(event.key==='Enter') executeDeleteUser()">
+    <div id="delConfirmErr" style="display:none;color:#c0392b;font-size:11px;margin-bottom:8px;text-align:center;"></div>
+    <div style="display:flex;gap:6px;">
+      <button onclick="executeDeleteUser()" style="flex:1;margin:0;background:#c0392b;color:#fff;border:none;border-radius:4px;padding:8px;font-size:13px;font-weight:bold;cursor:pointer;width:auto;">Löschen</button>
+      <button onclick="closeDeleteConfirm()" style="flex:1;margin:0;background:#ccc;color:#333;border:none;border-radius:4px;padding:8px;font-size:13px;cursor:pointer;width:auto;">Abbrechen</button>
+    </div>
+  </div>
+</div>
+
 <!-- Passwort-ändern-Modal -->
 <div id="changePwModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9500;align-items:center;justify-content:center;">
   <div style="background:#fff;border-radius:6px;padding:20px;max-width:360px;width:90%;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:Arial,sans-serif;font-size:13px;">
