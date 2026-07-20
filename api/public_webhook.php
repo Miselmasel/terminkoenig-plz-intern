@@ -52,6 +52,12 @@ if ($type === 'interessent') {
     if ($existing) {
         $contactId = $existing['id'];
         $created   = false;
+        // Neue Anfrage als Notiz anhängen
+        $anfrageNotiz = date('d.m.Y') . ' – Neue Anfrage von öffentlicher Karte'
+            . ($email   ? "\nE-Mail: $email"   : '')
+            . ($telefon ? "\nTel: $telefon"     : '');
+        $db->prepare("UPDATE contacts SET notizen = CONCAT(IFNULL(notizen,''), CASE WHEN notizen IS NULL OR notizen = '' THEN '' ELSE '\n---\n' END, ?) WHERE id = ?")
+           ->execute([$anfrageNotiz, $contactId]);
     } else {
         $db->prepare('INSERT INTO contacts (suchbegriff, kontakt_typ, typ, notizen) VALUES (?,?,?,?)')
            ->execute([$suchbegriff, 'interessent', 'bbm', $notizen]);
@@ -71,6 +77,11 @@ if ($type === 'interessent') {
     if ($existing) {
         $contactId = $existing['id'];
         $created   = false;
+        // Neue Anfrage als Notiz anhängen
+        $anfrageNotiz = date('d.m.Y') . ' – Neue Anfrage von öffentlicher Karte'
+            . "\nVertrag: $vtrnr";
+        $db->prepare("UPDATE contacts SET notizen = CONCAT(IFNULL(notizen,''), CASE WHEN notizen IS NULL OR notizen = '' THEN '' ELSE '\n---\n' END, ?) WHERE id = ?")
+           ->execute([$anfrageNotiz, $contactId]);
     } else {
         $suchbegriff = '_Kd_' . $kdnr;
         $db->prepare('INSERT INTO contacts (suchbegriff, kundennummer, vertragsnummer, kontakt_typ, typ) VALUES (?,?,?,?,?)')
