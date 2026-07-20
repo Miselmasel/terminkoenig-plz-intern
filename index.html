@@ -71,19 +71,19 @@
   <div class="s">
     <div class="tr" style="margin-bottom:6px;">
       <h3 style="margin:0;">ZUWEISEN</h3>
+      <button class="bk" onclick="openImportModal()" style="width:auto;margin:0;padding:3px 6px;font-size:11px;" title="PLZ aus CSV importieren">⬆ CSV</button>
     </div>
-    <select id="lpWunschContact" style="margin-bottom:4px;">
-      <option value="">— Kontakt wählen —</option>
-    </select>
+    <div style="position:relative;margin-bottom:4px;">
+      <input type="text" id="lpWunschSearch" placeholder="Kontakt suchen…" oninput="filterWunschSearch(this)" onfocus="filterWunschSearch(this)" autocomplete="off" style="margin:0;width:100%;box-sizing:border-box;">
+      <input type="hidden" id="lpWunschContactId">
+      <div id="lpWunschDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #c8a8dc;border-top:none;border-radius:0 0 4px 4px;max-height:150px;overflow-y:auto;z-index:200;box-shadow:0 4px 8px rgba(0,0,0,.15);"></div>
+    </div>
     <select id="lpWunschStatus" style="margin-bottom:4px;">
       <option value="wunsch">Wunsch</option>
       <option value="reserviert">Reserviert</option>
       <option value="belegt">Belegt</option>
     </select>
-    <div style="display:flex;gap:4px;margin-bottom:4px;">
-      <button id="lpWunschBtn" class="bb" onclick="assignWunsch()" style="flex:1;margin:0;padding:4px 6px;font-size:11px;">Auswahl zuweisen</button>
-      <button class="bk" onclick="openImportModal()" style="flex:0 0 auto;margin:0;padding:4px 8px;font-size:11px;" title="PLZ aus CSV importieren">⬆ CSV</button>
-    </div>
+    <button id="lpWunschBtn" class="bb" onclick="assignWunsch()" style="margin-bottom:4px;">Auswahl zuweisen</button>
     <div id="lpWunschMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
     <div style="font-size:10px;color:#aaa;margin-top:2px;"><span id="lpSelCount">0</span> Gebiete auf Karte ausgewählt</div>
   </div>
@@ -104,7 +104,20 @@
   <div class="s" style="flex:1;">
     <div class="tr" style="margin-bottom:6px;">
       <h3 style="margin:0;">KONTAKTE</h3>
-      <button class="bb" onclick="openContactForm(null)" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">+ Neu</button>
+      <div style="display:flex;gap:4px;">
+        <button class="bb" onclick="openQuickKunde()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">+ Kunde</button>
+        <button class="bk" onclick="openContactForm(null)" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">+ Neu</button>
+      </div>
+    </div>
+    <div id="quickKundeForm" style="display:none;background:#faf7fc;border:1px solid #c8a8dc;border-radius:4px;padding:8px;margin-bottom:6px;">
+      <input type="text" id="qkNachname" placeholder="Nachname *" style="margin-bottom:4px;">
+      <input type="text" id="qkVorname" placeholder="Vorname *" style="margin-bottom:4px;">
+      <input type="text" id="qkKundennummer" placeholder="Kundennummer *" style="margin-bottom:6px;">
+      <div style="display:flex;gap:4px;">
+        <button class="bb" onclick="saveQuickKunde()" style="flex:1;margin:0;font-size:11px;">Anlegen</button>
+        <button class="bk" onclick="closeQuickKunde()" style="flex:1;margin:0;font-size:11px;">Abbrechen</button>
+      </div>
+      <div id="qkMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
     </div>
     <div style="display:flex;gap:4px;margin-bottom:6px;">
       <input type="text" id="lpSearch" placeholder="Suchen…" oninput="filterContacts()" style="flex:1;min-width:0;margin:0;">
@@ -218,7 +231,7 @@
     <button class="br" onclick="auswahlLoeschen()">Auswahl loeschen</button>
   </div>
 
-  <div class="s">
+  <div class="s" style="display:none;">
     <div style="display:flex;align-items:center;gap:5px;flex-wrap:wrap;margin-bottom:8px;">
       <span style="font-size:11px;font-weight:bold;color:#333;">Auswahl per E-Mail an:</span>
       <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:14px;vertical-align:middle;">

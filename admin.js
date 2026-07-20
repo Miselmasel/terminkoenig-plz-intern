@@ -293,7 +293,7 @@ async function deleteAssignment(plz3, contactId) {
 async function assignWunsch() {
   var sel        = window.getAdminSel ? window.getAdminSel() : {};
   var plzList    = Object.keys(sel);
-  var contactId  = document.getElementById('lpWunschContact').value;
+  var contactId  = document.getElementById('lpWunschContactId').value;
   var statusEl   = document.getElementById('lpWunschStatus');
   var status     = statusEl ? statusEl.value : 'wunsch';
   var msg        = document.getElementById('lpWunschMsg');
@@ -824,7 +824,7 @@ async function loadContacts() {
 }
 
 function populateAllContactDropdowns() {
-  ['lpAssignContact', 'lpWunschContact', 'importContact'].forEach(function(id) {
+  ['lpAssignContact', 'importContact'].forEach(function(id) {
     var sel = document.getElementById(id);
     if (!sel) return;
     var cur = sel.value;
@@ -839,6 +839,106 @@ function populateAllContactDropdowns() {
     });
     if (cur) sel.value = cur;
   });
+  // Wunsch-Suchfeld: bei Neuladen Auswahl zurücksetzen
+  var wid = document.getElementById('lpWunschContactId');
+  var ws  = document.getElementById('lpWunschSearch');
+  if (wid && ws) { wid.value = ''; ws.value = ''; }
+}
+
+function filterWunschSearch(input) {
+  var q  = input.value.trim().toLowerCase();
+  var dd = document.getElementById('lpWunschDropdown');
+  if (!dd) return;
+  var wid = document.getElementById('lpWunschContactId');
+  if (wid && !q) wid.value = '';
+
+  var matches = q
+    ? allContacts.filter(function(c) {
+        return (c.suchbegriff || '').toLowerCase().indexOf(q) !== -1 ||
+               (c.kundennummer || '').toLowerCase().indexOf(q) !== -1;
+      })
+    : allContacts.slice(0, 30);
+
+  if (!matches.length) { dd.style.display = 'none'; return; }
+
+  dd.innerHTML = '';
+  matches.forEach(function(c) {
+    var label = c.suchbegriff || '—';
+    if (c.kundennummer) label += ' [' + c.kundennummer + ']';
+    var el = document.createElement('div');
+    el.className = 'wunsch-opt';
+    el.textContent = label;
+    el.dataset.id  = c.id;
+    el.dataset.label = label;
+    el.addEventListener('mousedown', function(e) {
+      e.preventDefault();
+      selectWunschContact(this.dataset.id, this.dataset.label);
+    });
+    dd.appendChild(el);
+  });
+  dd.style.display = '';
+}
+
+function selectWunschContact(id, label) {
+  document.getElementById('lpWunschContactId').value = id;
+  document.getElementById('lpWunschSearch').value    = label;
+  document.getElementById('lpWunschDropdown').style.display = 'none';
+}
+
+document.addEventListener('click', function(e) {
+  var dd = document.getElementById('lpWunschDropdown');
+  var inp = document.getElementById('lpWunschSearch');
+  if (dd && inp && !inp.contains(e.target) && !dd.contains(e.target)) {
+    dd.style.display = 'none';
+  }
+});
+
+function openQuickKunde() {
+  document.getElementById('qkNachname').value    = '';
+  document.getElementById('qkVorname').value     = '';
+  document.getElementById('qkKundennummer').value = '';
+  document.getElementById('qkMsg').textContent   = '';
+  document.getElementById('quickKundeForm').style.display = '';
+  document.getElementById('qkNachname').focus();
+}
+
+function closeQuickKunde() {
+  document.getElementById('quickKundeForm').style.display = 'none';
+}
+
+async function saveQuickKunde() {
+  var nachname = document.getElementById('qkNachname').value.trim();
+  var vorname  = document.getElementById('qkVorname').value.trim();
+  var kdnr     = document.getElementById('qkKundennummer').value.trim();
+  var msg      = document.getElementById('qkMsg');
+
+  if (!nachname || !vorname || !kdnr) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Alle Felder erforderlich.';
+    return;
+  }
+
+  var suchbegriff = nachname + '_' + vorname + '_' + kdnr;
+  try {
+    var res  = await fetch('api/contacts.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ suchbegriff: suchbegriff, kundennummer: kdnr, typ: 'bbm' })
+    });
+    var data = await res.json();
+    if (data.id) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ ' + suchbegriff + ' angelegt.';
+      await loadContacts();
+      setTimeout(closeQuickKunde, 1200);
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler beim Anlegen.';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Server nicht erreichbar.';
+  }
 }
 
 function renderContactList(contacts) {
