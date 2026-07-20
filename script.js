@@ -134,8 +134,9 @@ function onEachFeature(feature, layer) {
       entries.forEach(function(e) {
         var ic = icons[e.status] || '·';
         var cl = colors[e.status] || '#999';
+        var datum = e.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + e.import_datum + ')</span>' : '';
         txt += '<br><span style="color:' + cl + '">' + ic + '</span> ' +
-               (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+               (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;') + datum;
       });
     }
     return txt;

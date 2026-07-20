@@ -9,7 +9,8 @@ $method = $_SERVER['REQUEST_METHOD'];
 
 if ($method === 'GET') {
     $stmt = getDB()->query(
-        'SELECT p.plz3, p.status, p.contact_id, p.notiz, c.suchbegriff
+        'SELECT p.plz3, p.status, p.contact_id, p.notiz, c.suchbegriff,
+                DATE_FORMAT(p.zugewiesen_am, \'%d.%m.%Y\') AS import_datum
          FROM plz_assignments p
          LEFT JOIN contacts c ON c.id = p.contact_id
          WHERE p.status != \'frei\'

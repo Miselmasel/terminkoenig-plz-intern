@@ -120,10 +120,11 @@ window.onPlzAdminClick = function(plz3) {
       var icons  = { belegt: '●', reserviert: '◑', wunsch: '○' };
       var colors = { belegt: '#c0392b', reserviert: '#e67e22', wunsch: '#8e44ad' };
       existList.innerHTML = entries.map(function(e) {
-        var ic = icons[e.status]  || '·';
-        var cl = colors[e.status] || '#999';
+        var ic    = icons[e.status]  || '·';
+        var cl    = colors[e.status] || '#999';
+        var datum = e.import_datum ? '<span style="color:#bbb;font-size:9px;margin-left:3px;">(' + esc(e.import_datum) + ')</span>' : '';
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 0;font-size:11px;">' +
-          '<span><span style="color:' + cl + '">' + ic + '</span> ' + esc(e.suchbegriff || '—') + '</span>' +
+          '<span><span style="color:' + cl + '">' + ic + '</span> ' + esc(e.suchbegriff || '—') + datum + '</span>' +
           '<button onclick="deleteAssignment(\'' + e.plz3 + '\',' + e.contact_id + ')" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;padding:0 2px;" title="Entfernen">✕</button>' +
         '</div>';
       }).join('');
@@ -309,16 +310,52 @@ function closeImportModal() {
   importedPlzList = [];
 }
 
-function parsePlzFromText(text) {
-  var tokens = text.split(/[\n\r,;|\t ]+/);
-  var result = {};
-  tokens.forEach(function(t) {
-    var digits = t.replace(/\D/g, '');
-    if (digits.length >= 3) {
-      var plz3 = digits.substring(0, 3);
-      if (plz3 !== '000') result[plz3] = true;
-    }
+function parsePlzFromContent(text) {
+  var lines = text.split(/[\r\n]+/).filter(function(l) { return l.trim(); });
+  if (!lines.length) return [];
+
+  // Trennzeichen ermitteln
+  var sep = lines[0].indexOf(';') >= 0 ? ';' : ',';
+
+  // Header-Zeile analysieren
+  var headers = lines[0].split(sep).map(function(h) {
+    return h.trim().replace(/^["']|["']$/g, '').toLowerCase();
   });
+
+  // Terminkönig-CSV: Spalte "PLZ-Bereich" (z.B. "261xx") bevorzugt, sonst "PLZ" (5-stellig)
+  var plzBereichIdx = -1, plzIdx = -1;
+  headers.forEach(function(h, i) {
+    if (h.indexOf('plz-bereich') >= 0 || h.indexOf('plzbereich') >= 0) plzBereichIdx = i;
+    else if (h === 'plz') plzIdx = i;
+  });
+
+  var result = {};
+
+  if (plzBereichIdx >= 0 || plzIdx >= 0) {
+    // Strukturiertes CSV mit erkannten Spalten — nur diese Spalte auswerten
+    for (var i = 1; i < lines.length; i++) {
+      var cols = lines[i].split(sep).map(function(c) { return c.trim().replace(/^["']|["']$/g, ''); });
+      var raw = plzBereichIdx >= 0 ? (cols[plzBereichIdx] || '') : (cols[plzIdx] || '');
+      var digits = raw.replace(/\D/g, '');
+      if (digits.length >= 3) {
+        var p3 = digits.substring(0, 3);
+        if (p3 !== '000') result[p3] = true;
+      }
+    }
+  } else {
+    // Fallback: nur kurze Token (3–5 Ziffern) auswerten – verhindert falsche Treffer bei
+    // Einwohner-/Betriebe-Spalten (5+ Stellen werden ignoriert)
+    lines.forEach(function(line) {
+      line.split(/[,;|\t\s]+/).forEach(function(token) {
+        var d = token.replace(/\D/g, '');
+        if (d.length >= 3 && d.length <= 5) {
+          var p3 = d.substring(0, 3);
+          if (p3 !== '000') result[p3] = true;
+        }
+      });
+    });
+  }
+
   return Object.keys(result).sort();
 }
 
@@ -337,7 +374,7 @@ function previewImport() {
       try {
         var wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
         var text = wb.SheetNames.map(function(n) { return XLSX.utils.sheet_to_csv(wb.Sheets[n]); }).join('\n');
-        importedPlzList = parsePlzFromText(text);
+        importedPlzList = parsePlzFromContent(text);
         showImportPreview();
       } catch(err) {
         showImportPreviewError('Datei konnte nicht gelesen werden: ' + err.message);
@@ -347,7 +384,7 @@ function previewImport() {
   } else {
     var reader = new FileReader();
     reader.onload = function(e) {
-      importedPlzList = parsePlzFromText(e.target.result);
+      importedPlzList = parsePlzFromContent(e.target.result);
       showImportPreview();
     };
     reader.readAsText(file, 'UTF-8');
