@@ -369,15 +369,7 @@
 <script src="script.js?v=2"></script>
 <script src="admin.js?v=8"></script>
 <script>
-// User-Ansicht: checkLogin überschreiben – kein Admin-Bereich, kein BENUTZER-Panel
-// TEMPORÄR für lokales Testen – vor Go-Live durch echte Auth ersetzen
-checkLogin = async function() {
-  var el = document.getElementById('lpUserName');
-  if (el) el.textContent = 'Benutzer (Test)';
-  window.currentUserRole = 'user';
-  // lpUserMgmt bleibt display:none
-};
-/* ORIGINAL – wieder aktivieren wenn Server läuft:
+// User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet
 checkLogin = async function() {
   try {
     var res  = await fetch('api/auth.php?action=me');
@@ -389,7 +381,6 @@ checkLogin = async function() {
     if (el) el.textContent = data.name || data.email;
   } catch(e) { location.href = 'login.html'; }
 };
-*/
 </script>
 </body>
 </html>

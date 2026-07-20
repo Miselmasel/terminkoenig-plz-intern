@@ -17,15 +17,6 @@ function saveLocalContacts() {
 }
 
 // ─── Login ────────────────────────────────────────────────────────
-// TEMPORÄR: Fake-Admin für lokales Testen – vor Go-Live entfernen!
-async function checkLogin() {
-  var el = document.getElementById('lpUserName');
-  if (el) el.textContent = 'Admin (Test)';
-  window.currentUserRole = 'admin';
-  var um = document.getElementById('lpUserMgmt');
-  if (um) { um.style.display = ''; loadUsers(); }
-}
-/* ORIGINAL – wieder aktivieren wenn Server läuft:
 async function checkLogin() {
   try {
     var res  = await fetch('api/auth.php?action=me');
@@ -40,7 +31,6 @@ async function checkLogin() {
     }
   } catch(e) { location.href = 'login.html'; }
 }
-*/
 
 async function doLogout() {
   try { await fetch('api/auth.php?action=logout'); } catch(e) {}
