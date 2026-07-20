@@ -239,8 +239,10 @@ function togglePLZ(plz3) {
   var si = document.getElementById("si");
   if (si) si.value = plz3;
 
-  if (typeof window.onPlzAdminClick  === 'function') window.onPlzAdminClick(plz3);
-  if (typeof window.updateSelCount   === 'function') window.updateSelCount();
+  var selCount = Object.keys(sel).length;
+  // Einzelgebiet-Panel nur öffnen wenn genau 1 PLZ ausgewählt ist
+  if (selCount === 1 && sel[plz3] && typeof window.onPlzAdminClick === 'function') window.onPlzAdminClick(plz3);
+  if (typeof window.updateSelCount === 'function') window.updateSelCount();
 }
 
 function refreshLayer(plz3) {

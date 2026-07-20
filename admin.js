@@ -95,6 +95,8 @@ window.updateSelCount = function() {
   if (el) el.textContent = cnt;
   var btn = document.getElementById('lpWunschBtn');
   if (btn) btn.textContent = cnt ? 'Auswahl zuweisen (' + cnt + ')' : 'Auswahl zuweisen';
+  // Einzelgebiet-Panel schließen sobald mehrere PLZs ausgewählt sind
+  if (cnt > 1) closeAssignPanel();
 };
 
 // ─── PLZ-Zuweisung (Einzel, bei Klick auf Karte) ─────────────────
