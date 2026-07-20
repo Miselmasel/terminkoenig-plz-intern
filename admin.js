@@ -81,8 +81,8 @@ function toggleStatusMode() {
   window.statusMode = !window.statusMode;
   var btn = document.getElementById('statusToggleBtn');
   if (btn) {
-    btn.textContent = window.statusMode ? 'ausblenden' : 'einblenden';
-    btn.className = window.statusMode ? 'bb' : 'bk';
+    btn.textContent = window.statusMode ? 'Wünsche: ein' : 'Wünsche: aus';
+    btn.className   = window.statusMode ? 'bb' : 'bk';
     btn.style.cssText = 'width:auto;margin:0;padding:3px 8px;font-size:11px;';
   }
   if (typeof refreshAll === 'function') refreshAll();
@@ -182,6 +182,7 @@ async function saveAssignment() {
     }
     updateStatusCount();
     if (typeof refreshLayer === 'function') refreshLayer(selectedPlz3);
+    if (typeof refreshAll === 'function') refreshAll();
     msg.style.color = '#27ae60';
     msg.textContent = 'Gespeichert (lokal).';
     setTimeout(closeAssignPanel, 700);
@@ -199,7 +200,7 @@ async function saveAssignment() {
       msg.style.color = '#27ae60';
       msg.textContent = 'Gespeichert.';
       await loadPlzStatus();
-      if (typeof refreshLayer === 'function') refreshLayer(selectedPlz3);
+      if (typeof refreshAll === 'function') refreshAll();
       setTimeout(closeAssignPanel, 700);
     } else {
       msg.style.color = '#e74c3c';
@@ -263,7 +264,7 @@ async function assignWunsch() {
       else window.plzStatusData[plz3].push(entry);
     });
     updateStatusCount();
-    if (typeof refreshAll === 'function') refreshAll();
+    aktiviereStatusUndResetSelection();
     msg.style.color = '#27ae60';
     msg.textContent = plzList.length + ' Gebiete als Wunsch markiert (lokal).';
     return;
@@ -278,7 +279,7 @@ async function assignWunsch() {
     var result = await res.json();
     if (result.ok) {
       await loadPlzStatus();
-      if (typeof refreshAll === 'function') refreshAll();
+      aktiviereStatusUndResetSelection();
       msg.style.color = '#27ae60';
       msg.textContent = plzList.length + ' Gebiete als Wunsch markiert.';
     } else {
@@ -289,6 +290,22 @@ async function assignWunsch() {
     msg.style.color = '#e74c3c';
     msg.textContent = 'Server nicht erreichbar.';
   }
+}
+
+// Aktiviert Wunsch-Anzeige (statusMode) falls noch aus, und löscht die Karten-Auswahl
+function aktiviereStatusUndResetSelection() {
+  if (!window.statusMode) {
+    window.statusMode = true;
+    var btn = document.getElementById('statusToggleBtn');
+    if (btn) {
+      btn.textContent = 'Wünsche: ein';
+      btn.className   = 'bb';
+      btn.style.cssText = 'width:auto;margin:0;padding:3px 8px;font-size:11px;';
+    }
+  }
+  // Karten-Auswahl (Lavender) zurücksetzen
+  if (typeof auswahlLoeschen === 'function') auswahlLoeschen();
+  else if (typeof refreshAll === 'function') refreshAll();
 }
 
 // ─── Import (CSV / XLS) ──────────────────────────────────────────
@@ -435,7 +452,7 @@ async function doImport() {
       else window.plzStatusData[plz3].push(entry);
     });
     updateStatusCount();
-    if (typeof refreshAll === 'function') refreshAll();
+    aktiviereStatusUndResetSelection();
     msg.style.color = '#27ae60';
     msg.textContent = importedPlzList.length + ' Gebiete importiert (lokal).';
     setTimeout(closeImportModal, 1200);
@@ -451,7 +468,7 @@ async function doImport() {
     var result = await res.json();
     if (result.ok) {
       await loadPlzStatus();
-      if (typeof refreshAll === 'function') refreshAll();
+      aktiviereStatusUndResetSelection();
       msg.style.color = '#27ae60';
       msg.textContent = importedPlzList.length + ' Gebiete importiert.';
       setTimeout(closeImportModal, 1200);

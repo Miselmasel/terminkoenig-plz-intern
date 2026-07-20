@@ -92,12 +92,13 @@ function styleFeature(feature) {
   if (selHol[plz3]) {
     return { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
   }
-  if (window.statusMode && window.plzStatusData && window.plzStatusData[plz3]) {
+  if (window.plzStatusData && window.plzStatusData[plz3]) {
     var entries = window.plzStatusData[plz3];
     var sts = Array.isArray(entries) ? entries.map(function(e){return e.status;}) : [entries.status];
-    if (sts.indexOf('belegt')     >= 0) return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 1.5 };
+    // Belegt/Reserviert immer anzeigen; Wunsch nur wenn statusMode aktiv
+    if (sts.indexOf('belegt')     >= 0) return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 2 };
     if (sts.indexOf('reserviert') >= 0) return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
-    if (sts.indexOf('wunsch')     >= 0) return { fillColor: '#8e44ad', fillOpacity: 0.30, color: '#6c3483', weight: 1.0 };
+    if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#8e44ad', fillOpacity: 0.30, color: '#6c3483', weight: 1.0 };
   }
   if (preisklassenMode) {
     var pk = PREISKLASSEN[plz3.substring(0, 2)];
@@ -128,16 +129,27 @@ function onEachFeature(feature, layer) {
     if (b && b.est) txt += '<br><small>ca. ' + b.est.toLocaleString('de-DE') + ' Betriebe</small>';
     var entries = window.plzStatusData && window.plzStatusData[p];
     if (entries && entries.length) {
-      var icons  = { belegt: '●', reserviert: '◑', wunsch: '○' };
-      var colors = { belegt: '#c0392b', reserviert: '#e67e22', wunsch: '#8e44ad' };
-      txt += '<hr style="margin:3px 0;border:none;border-top:1px solid #ddd;">';
+      var belegtE     = null, reserviertE = null, wunschList = [];
       entries.forEach(function(e) {
-        var ic = icons[e.status] || '·';
-        var cl = colors[e.status] || '#999';
-        var datum = e.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + e.import_datum + ')</span>' : '';
-        txt += '<br><span style="color:' + cl + '">' + ic + '</span> ' +
-               (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;') + datum;
+        if (e.status === 'belegt')     belegtE     = e;
+        else if (e.status === 'reserviert') reserviertE = e;
+        else if (e.status === 'wunsch') wunschList.push(e);
       });
+      txt += '<hr style="margin:3px 0;border:none;border-top:1px solid #ddd;">';
+      if (belegtE) {
+        var d = belegtE.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + belegtE.import_datum + ')</span>' : '';
+        txt += '<br><strong style="color:#c0392b;">Belegt durch:</strong> ' +
+               (belegtE.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;') + d;
+      }
+      if (reserviertE) {
+        var d = reserviertE.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + reserviertE.import_datum + ')</span>' : '';
+        txt += '<br><strong style="color:#e67e22;">Reserviert:</strong> ' +
+               (reserviertE.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;') + d;
+      }
+      if (wunschList.length) {
+        txt += '<br><span style="color:#8e44ad;">Wunsch:</span> ' +
+               wunschList.map(function(e) { return (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }).join(', ');
+      }
     }
     return txt;
   }, { sticky: true, direction: "top", opacity: 0.92 });
