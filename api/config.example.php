@@ -12,4 +12,4 @@ define('SESSION_SECRET', 'HIER_ZUFAELLIGEN_STRING_EINTRAGEN');
 
 // E-Mail (Einladungen)
 define('MAIL_FROM', 'noreply@plz-vertriebsplaner.de');  // Absenderadresse
-define('APP_URL',   'https://intern.plz-vertriebsplaner.de');  // Basis-URL ohne trailing slash
+define('APP_URL',   'https://verwaltung.terminkoenig.plz-vertriebsplaner.de');  // Basis-URL ohne trailing slash

@@ -13,7 +13,7 @@ auf der Karte sichtbar machen.
 
 ## Live-URLs
 - Öffentlich: https://terminkoenig.plz-vertriebsplaner.de/ (Vercel)
-- Intern (geplant): https://intern.plz-vertriebsplaner.de/ (all-inkl)
+- Intern: https://verwaltung.terminkoenig.plz-vertriebsplaner.de/ (all-inkl, Ordner: /Kartenprojekt/verwaltung/)
 
 ## Tech Stack
 | Schicht    | Technologie                          |
@@ -71,12 +71,12 @@ auf der Karte sichtbar machen.
 | api/users.php         | GET/POST/PUT/DELETE | admin | Benutzer verwalten |
 
 ## Setup auf all-inkl (Checkliste)
-1. [ ] Subdomain `intern.plz-vertriebsplaner.de` in all-inkl anlegen
+1. [x] Subdomain `verwaltung.terminkoenig.plz-vertriebsplaner.de` → /Kartenprojekt/verwaltung/
 2. [ ] Dateien per FTP/Git auf den Server laden
 3. [ ] `api/config.php` aus `api/config.example.php` kopieren und DB-Daten eintragen
 4. [ ] `db/schema.sql` in phpMyAdmin importieren
 5. [ ] Standard-Admin-Passwort ändern (Login: admin / Passwort: admin123)
-6. [ ] E-Mail-Funktion: send-email.js durch PHP-Version ersetzen (noch offen)
+6. [ ] E-Mail-Funktion testen (PHP mail() auf all-inkl)
 
 ## Multi-PC Workflow
 - **Code-Änderungen**: `git pull` vor Arbeitsbeginn, `git push` nach Abschluss
