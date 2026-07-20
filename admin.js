@@ -912,11 +912,13 @@ document.addEventListener('click', function(e) {
 });
 
 function openQuickKunde() {
+  var f = document.getElementById('quickKundeForm');
+  if (f && f.style.display !== 'none' && f.style.display !== '') { closeQuickKunde(); return; }
   document.getElementById('qkNachname').value    = '';
   document.getElementById('qkVorname').value     = '';
   document.getElementById('qkKundennummer').value = '';
   document.getElementById('qkMsg').textContent   = '';
-  document.getElementById('quickKundeForm').style.display = '';
+  f.style.display = '';
   document.getElementById('qkNachname').focus();
 }
 
@@ -927,6 +929,7 @@ function closeQuickKunde() {
 function openQuickInteressent() {
   var f = document.getElementById('quickInteressentForm');
   if (!f) return;
+  if (f.style.display !== 'none' && f.style.display !== '') { closeQuickInteressent(); return; }
   document.getElementById('qiNachname').value = '';
   document.getElementById('qiVorname').value  = '';
   document.getElementById('qiMsg').textContent = '';
