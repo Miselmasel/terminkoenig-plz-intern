@@ -9,6 +9,7 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', 
 
 var sel = {};
 var selHol = {};
+window.getAdminSel = function() { return sel; };
 var geoL = null;
 var allLayers = {};
 var centroids = {};
@@ -92,9 +93,11 @@ function styleFeature(feature) {
     return { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
   }
   if (window.statusMode && window.plzStatusData && window.plzStatusData[plz3]) {
-    var st = window.plzStatusData[plz3].status;
-    if (st === 'belegt')     return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 1.5 };
-    if (st === 'reserviert') return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
+    var entries = window.plzStatusData[plz3];
+    var sts = Array.isArray(entries) ? entries.map(function(e){return e.status;}) : [entries.status];
+    if (sts.indexOf('belegt')     >= 0) return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 1.5 };
+    if (sts.indexOf('reserviert') >= 0) return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
+    if (sts.indexOf('wunsch')     >= 0) return { fillColor: '#8e44ad', fillOpacity: 0.30, color: '#6c3483', weight: 1.0 };
   }
   if (preisklassenMode) {
     var pk = PREISKLASSEN[plz3.substring(0, 2)];
@@ -121,10 +124,22 @@ function onEachFeature(feature, layer) {
   layer.bindTooltip(function(l) {
     var p = l.feature.properties.plz;
     var b = plzBusinesses[p];
-    var txt = p + "xx";
-    if (b && b.est) txt += "<br><small>ca. " + b.est.toLocaleString("de-DE") + " Betriebe</small>";
+    var txt = '<strong>' + p + 'xx</strong>';
+    if (b && b.est) txt += '<br><small>ca. ' + b.est.toLocaleString('de-DE') + ' Betriebe</small>';
+    var entries = window.plzStatusData && window.plzStatusData[p];
+    if (entries && entries.length) {
+      var icons  = { belegt: '●', reserviert: '◑', wunsch: '○' };
+      var colors = { belegt: '#c0392b', reserviert: '#e67e22', wunsch: '#8e44ad' };
+      txt += '<hr style="margin:3px 0;border:none;border-top:1px solid #ddd;">';
+      entries.forEach(function(e) {
+        var ic = icons[e.status] || '·';
+        var cl = colors[e.status] || '#999';
+        txt += '<br><span style="color:' + cl + '">' + ic + '</span> ' +
+               (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+      });
+    }
     return txt;
-  }, { sticky: true, direction: "top", opacity: 0.88 });
+  }, { sticky: true, direction: "top", opacity: 0.92 });
   layer.on("click", function () {
     togglePLZ(plz3);
   });
@@ -211,7 +226,8 @@ function togglePLZ(plz3) {
   var si = document.getElementById("si");
   if (si) si.value = plz3;
 
-  if (typeof window.onPlzAdminClick === 'function') window.onPlzAdminClick(plz3);
+  if (typeof window.onPlzAdminClick  === 'function') window.onPlzAdminClick(plz3);
+  if (typeof window.updateSelCount   === 'function') window.updateSelCount();
 }
 
 function refreshLayer(plz3) {
@@ -407,6 +423,7 @@ function auswahlLoeschen() {
   selHol = {};
   refreshAll();
   updateSidebar();
+  if (typeof window.updateSelCount === 'function') window.updateSelCount();
 }
 
 function haversine(lat1, lon1, lat2, lon2) {

@@ -32,16 +32,18 @@ CREATE TABLE IF NOT EXISTS contacts (
   geaendert_am   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
--- PLZ-Zuweisungen (3-stellig, wie in der Karte)
+-- PLZ-Zuweisungen (mehrere Kontakte pro PLZ möglich – z.B. mehrere Wünsche)
+-- Eindeutigkeit gilt pro (plz3, contact_id) Paar
 CREATE TABLE IF NOT EXISTS plz_assignments (
   id             INT AUTO_INCREMENT PRIMARY KEY,
-  plz3           CHAR(3)  NOT NULL UNIQUE,
+  plz3           CHAR(3)  NOT NULL,
   contact_id     INT,
-  status         ENUM('frei','reserviert','belegt') DEFAULT 'frei',
+  status         ENUM('frei','wunsch','reserviert','belegt') DEFAULT 'wunsch',
   notiz          TEXT,
   zugewiesen_am  DATETIME DEFAULT CURRENT_TIMESTAMP,
   geaendert_am   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   geaendert_von  INT,
-  FOREIGN KEY (contact_id)    REFERENCES contacts(id) ON DELETE SET NULL,
+  UNIQUE KEY uq_plz_contact (plz3, contact_id),
+  FOREIGN KEY (contact_id)    REFERENCES contacts(id) ON DELETE CASCADE,
   FOREIGN KEY (geaendert_von) REFERENCES users(id)    ON DELETE SET NULL
 );
