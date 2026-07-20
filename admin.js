@@ -94,7 +94,7 @@ window.updateSelCount = function() {
   var el = document.getElementById('lpSelCount');
   if (el) el.textContent = cnt;
   var btn = document.getElementById('lpWunschBtn');
-  if (btn) btn.textContent = cnt ? 'Als Wunsch markieren (' + cnt + ')' : 'Als Wunsch markieren';
+  if (btn) btn.textContent = cnt ? 'Auswahl zuweisen (' + cnt + ')' : 'Auswahl zuweisen';
 };
 
 // ─── PLZ-Zuweisung (Einzel, bei Klick auf Karte) ─────────────────
@@ -239,6 +239,8 @@ async function assignWunsch() {
   var sel        = window.getAdminSel ? window.getAdminSel() : {};
   var plzList    = Object.keys(sel);
   var contactId  = document.getElementById('lpWunschContact').value;
+  var statusEl   = document.getElementById('lpWunschStatus');
+  var status     = statusEl ? statusEl.value : 'wunsch';
   var msg        = document.getElementById('lpWunschMsg');
 
   if (!contactId) {
@@ -259,14 +261,14 @@ async function assignWunsch() {
     plzList.forEach(function(plz3) {
       if (!window.plzStatusData[plz3]) window.plzStatusData[plz3] = [];
       var idx = window.plzStatusData[plz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
-      var entry = { plz3: plz3, status: 'wunsch', contact_id: parseInt(contactId), suchbegriff: suchbegriff, notiz: '' };
+      var entry = { plz3: plz3, status: status, contact_id: parseInt(contactId), suchbegriff: suchbegriff, notiz: '' };
       if (idx >= 0) window.plzStatusData[plz3][idx] = entry;
       else window.plzStatusData[plz3].push(entry);
     });
     updateStatusCount();
-    aktiviereStatusUndResetSelection();
+    aktiviereStatusUndResetSelection(status);
     msg.style.color = '#27ae60';
-    msg.textContent = plzList.length + ' Gebiete als Wunsch markiert (lokal).';
+    msg.textContent = plzList.length + ' Gebiete als ' + status + ' markiert (lokal).';
     return;
   }
 
@@ -274,14 +276,14 @@ async function assignWunsch() {
     var res = await fetch('api/plz_status.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ plz3_list: plzList, contact_id: parseInt(contactId), status: 'wunsch' })
+      body: JSON.stringify({ plz3_list: plzList, contact_id: parseInt(contactId), status: status })
     });
     var result = await res.json();
     if (result.ok) {
       await loadPlzStatus();
-      aktiviereStatusUndResetSelection();
+      aktiviereStatusUndResetSelection(status);
       msg.style.color = '#27ae60';
-      msg.textContent = plzList.length + ' Gebiete als Wunsch markiert.';
+      msg.textContent = plzList.length + ' Gebiete als ' + status + ' markiert.';
     } else {
       msg.style.color = '#e74c3c';
       msg.textContent = result.error || 'Fehler.';
@@ -292,9 +294,9 @@ async function assignWunsch() {
   }
 }
 
-// Aktiviert Wunsch-Anzeige (statusMode) falls noch aus, und löscht die Karten-Auswahl
-function aktiviereStatusUndResetSelection() {
-  if (!window.statusMode) {
+// Aktiviert Wunsch-Anzeige (statusMode) bei Wunsch-Zuweisung, löscht Karten-Auswahl
+function aktiviereStatusUndResetSelection(status) {
+  if (status === 'wunsch' && !window.statusMode) {
     window.statusMode = true;
     var btn = document.getElementById('statusToggleBtn');
     if (btn) {
@@ -303,7 +305,6 @@ function aktiviereStatusUndResetSelection() {
       btn.style.cssText = 'width:auto;margin:0;padding:3px 8px;font-size:11px;';
     }
   }
-  // Karten-Auswahl (Lavender) zurücksetzen
   if (typeof auswahlLoeschen === 'function') auswahlLoeschen();
   else if (typeof refreshAll === 'function') refreshAll();
 }
@@ -452,7 +453,7 @@ async function doImport() {
       else window.plzStatusData[plz3].push(entry);
     });
     updateStatusCount();
-    aktiviereStatusUndResetSelection();
+    aktiviereStatusUndResetSelection(status);
     msg.style.color = '#27ae60';
     msg.textContent = importedPlzList.length + ' Gebiete importiert (lokal).';
     setTimeout(closeImportModal, 1200);
@@ -468,7 +469,7 @@ async function doImport() {
     var result = await res.json();
     if (result.ok) {
       await loadPlzStatus();
-      aktiviereStatusUndResetSelection();
+      aktiviereStatusUndResetSelection(status);
       msg.style.color = '#27ae60';
       msg.textContent = importedPlzList.length + ' Gebiete importiert.';
       setTimeout(closeImportModal, 1200);
