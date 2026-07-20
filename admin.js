@@ -865,24 +865,42 @@ function filterWunschSearch(input) {
   matches.forEach(function(c) {
     var label = c.suchbegriff || '—';
     if (c.kundennummer) label += ' [' + c.kundennummer + ']';
+    var isInt = c.kontakt_typ === 'interessent';
     var el = document.createElement('div');
     el.className = 'wunsch-opt';
-    el.textContent = label;
-    el.dataset.id  = c.id;
+    el.style.display = 'flex'; el.style.alignItems = 'center'; el.style.gap = '5px';
+    var badge = document.createElement('span');
+    badge.textContent = isInt ? 'I' : 'K';
+    badge.style.cssText = 'flex-shrink:0;background:' + (isInt ? '#e67e22' : '#27ae60') +
+      ';color:#fff;border-radius:2px;padding:1px 4px;font-size:9px;font-weight:bold;';
+    var txt = document.createElement('span');
+    txt.textContent = label;
+    el.appendChild(badge); el.appendChild(txt);
+    el.dataset.id    = c.id;
     el.dataset.label = label;
+    el.dataset.typ   = c.kontakt_typ || 'kunde';
     el.addEventListener('mousedown', function(e) {
       e.preventDefault();
-      selectWunschContact(this.dataset.id, this.dataset.label);
+      selectWunschContact(this.dataset.id, this.dataset.label, this.dataset.typ);
     });
     dd.appendChild(el);
   });
   dd.style.display = '';
 }
 
-function selectWunschContact(id, label) {
+function selectWunschContact(id, label, typ) {
   document.getElementById('lpWunschContactId').value = id;
   document.getElementById('lpWunschSearch').value    = label;
   document.getElementById('lpWunschDropdown').style.display = 'none';
+  var statusSel = document.getElementById('lpWunschStatus');
+  if (statusSel) {
+    if (typ === 'interessent') {
+      statusSel.value    = 'wunsch';
+      statusSel.disabled = true;
+    } else {
+      statusSel.disabled = false;
+    }
+  }
 }
 
 document.addEventListener('click', function(e) {
@@ -906,6 +924,107 @@ function closeQuickKunde() {
   document.getElementById('quickKundeForm').style.display = 'none';
 }
 
+function openQuickInteressent() {
+  var f = document.getElementById('quickInteressentForm');
+  if (!f) return;
+  document.getElementById('qiNachname').value = '';
+  document.getElementById('qiVorname').value  = '';
+  document.getElementById('qiMsg').textContent = '';
+  f.style.display = '';
+  document.getElementById('qiNachname').focus();
+}
+
+function closeQuickInteressent() {
+  var f = document.getElementById('quickInteressentForm');
+  if (f) f.style.display = 'none';
+}
+
+async function saveQuickInteressent() {
+  var nachname = document.getElementById('qiNachname').value.trim();
+  var vorname  = document.getElementById('qiVorname').value.trim();
+  var msg      = document.getElementById('qiMsg');
+
+  if (!nachname || !vorname) {
+    msg.style.color = '#e67e22';
+    msg.textContent = 'Nachname und Vorname erforderlich.';
+    return;
+  }
+
+  var suchbegriff = nachname + '_' + vorname;
+  try {
+    var res  = await fetch('api/contacts.php', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({ suchbegriff: suchbegriff, typ: 'bbm', kontakt_typ: 'interessent' })
+    });
+    var data = await res.json();
+    if (data.id) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ ' + suchbegriff + ' angelegt.';
+      await loadContacts();
+      setTimeout(closeQuickInteressent, 1200);
+    } else {
+      msg.style.color = '#e67e22';
+      msg.textContent = data.error || 'Fehler beim Anlegen.';
+    }
+  } catch(e) {
+    msg.style.color = '#e67e22';
+    msg.textContent = 'Server nicht erreichbar.';
+  }
+}
+
+var _convertId = null;
+
+function openConvertModal(id) {
+  var c = allContacts.find(function(x) { return x.id == id; });
+  if (!c) return;
+  _convertId = id;
+  document.getElementById('convertLabel').textContent = c.suchbegriff || '—';
+  document.getElementById('convertKdnr').value  = c.kundennummer || '';
+  document.getElementById('convertVtrnr').value = c.vertragsnummer || '';
+  document.getElementById('convertErr').style.display = 'none';
+  document.getElementById('convertModal').style.display = 'flex';
+  document.getElementById('convertKdnr').focus();
+}
+
+function closeConvertModal() {
+  document.getElementById('convertModal').style.display = 'none';
+  _convertId = null;
+}
+
+async function executeConvert() {
+  var kdnr  = document.getElementById('convertKdnr').value.trim();
+  var vtrnr = document.getElementById('convertVtrnr').value.trim();
+  var err   = document.getElementById('convertErr');
+  if (!kdnr) {
+    err.textContent = 'Kundennummer ist erforderlich.';
+    err.style.display = '';
+    return;
+  }
+  var c = allContacts.find(function(x) { return x.id == _convertId; });
+  if (!c) { closeConvertModal(); return; }
+  var idToConvert = _convertId;
+  closeConvertModal();
+  try {
+    var res = await fetch('api/contacts.php?id=' + idToConvert, {
+      method: 'PUT',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({
+        suchbegriff:  c.suchbegriff,
+        kundennummer: kdnr,
+        vertragsnummer: vtrnr,
+        typ:          c.typ || 'bbm',
+        bl_wert:      c.bl_wert,
+        notizen:      c.notizen || '',
+        kontakt_typ:  'kunde'
+      })
+    });
+    var data = await res.json();
+    if (data.ok) { await loadContacts(); }
+    else { alert(data.error || 'Umwandlung fehlgeschlagen.'); }
+  } catch(e) { alert('Server nicht erreichbar.'); }
+}
+
 async function saveQuickKunde() {
   var nachname = document.getElementById('qkNachname').value.trim();
   var vorname  = document.getElementById('qkVorname').value.trim();
@@ -923,7 +1042,7 @@ async function saveQuickKunde() {
     var res  = await fetch('api/contacts.php', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ suchbegriff: suchbegriff, kundennummer: kdnr, typ: 'bbm' })
+      body: JSON.stringify({ suchbegriff: suchbegriff, kundennummer: kdnr, typ: 'bbm', kontakt_typ: 'kunde' })
     });
     var data = await res.json();
     if (data.id) {
@@ -949,20 +1068,30 @@ function renderContactList(contacts) {
     return;
   }
   list.innerHTML = contacts.map(function(c) {
-    var typColor = c.typ === 'bl' ? '#2980b9' : '#642d7b';
-    var typLabel = c.typ === 'bl' ? 'BL' : 'BBM';
+    var typColor  = c.typ === 'bl' ? '#2980b9' : '#642d7b';
+    var typLabel  = c.typ === 'bl' ? 'BL' : 'BBM';
+    var isInt     = c.kontakt_typ === 'interessent';
+    var ktBg      = isInt ? '#e67e22' : '#27ae60';
+    var ktLabel   = isInt ? 'I' : 'K';
     var sub = [];
     if (c.kundennummer)   sub.push('Kd. ' + c.kundennummer);
     if (c.vertragsnummer) sub.push('Vtr. ' + c.vertragsnummer);
     if (c.typ === 'bl' && c.bl_wert) sub.push('BL ' + c.bl_wert);
     var cnt = c.plz_count || 0;
+    var convertBtn = isInt
+      ? '<button onclick="event.stopPropagation();openConvertModal(' + c.id + ')" title="In Kunde umwandeln" ' +
+        'style="flex-shrink:0;width:auto;background:#27ae60;color:#fff;border:none;border-radius:3px;' +
+        'padding:2px 5px;font-size:10px;cursor:pointer;white-space:nowrap;line-height:1.5;">→ K</button>'
+      : '';
     return '<div class="ct-item" onclick="selectContact(' + JSON.stringify(c.id) + ')">' +
+      '<span style="flex-shrink:0;width:14px;height:20px;background:' + ktBg + ';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">' + ktLabel + '</span>' +
       '<span class="ct-badge" style="background:' + typColor + ';flex-shrink:0;width:28px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#fff;">' + typLabel + '</span>' +
       '<div class="ct-info" style="flex:1;min-width:0;">' +
         '<div class="ct-name">' + esc(c.suchbegriff || '—') + '</div>' +
         (sub.length ? '<div class="ct-sub">' + esc(sub.join(' · ')) + '</div>' : '') +
       '</div>' +
       '<span class="ct-plz-count">' + cnt + '</span>' +
+      convertBtn +
     '</div>';
   }).join('');
 }

@@ -39,17 +39,19 @@ if ($method === 'POST') {
     if (empty($d['suchbegriff'])) {
         jsonOut(['error' => 'Suchbegriff ist erforderlich'], 400);
     }
-    $typ    = in_array($d['typ'] ?? '', ['bbm','bl']) ? $d['typ'] : 'bbm';
-    $blWert = ($typ === 'bl' && isset($d['bl_wert'])) ? intval($d['bl_wert']) : null;
+    $typ        = in_array($d['typ'] ?? '', ['bbm','bl']) ? $d['typ'] : 'bbm';
+    $blWert     = ($typ === 'bl' && isset($d['bl_wert'])) ? intval($d['bl_wert']) : null;
+    $kontaktTyp = in_array($d['kontakt_typ'] ?? '', ['interessent','kunde']) ? $d['kontakt_typ'] : 'kunde';
 
     $stmt = getDB()->prepare(
-        'INSERT INTO contacts (suchbegriff,kundennummer,vertragsnummer,typ,bl_wert,notizen)
-         VALUES (?,?,?,?,?,?)'
+        'INSERT INTO contacts (suchbegriff,kundennummer,vertragsnummer,kontakt_typ,typ,bl_wert,notizen)
+         VALUES (?,?,?,?,?,?,?)'
     );
     $stmt->execute([
         trim($d['suchbegriff']),
         $d['kundennummer']   ?? '',
         $d['vertragsnummer'] ?? '',
+        $kontaktTyp,
         $typ,
         $blWert,
         $d['notizen'] ?? '',
@@ -62,17 +64,19 @@ if ($method === 'PUT' && $id) {
     if (empty($d['suchbegriff'])) {
         jsonOut(['error' => 'Suchbegriff ist erforderlich'], 400);
     }
-    $typ    = in_array($d['typ'] ?? '', ['bbm','bl']) ? $d['typ'] : 'bbm';
-    $blWert = ($typ === 'bl' && isset($d['bl_wert'])) ? intval($d['bl_wert']) : null;
+    $typ        = in_array($d['typ'] ?? '', ['bbm','bl']) ? $d['typ'] : 'bbm';
+    $blWert     = ($typ === 'bl' && isset($d['bl_wert'])) ? intval($d['bl_wert']) : null;
+    $kontaktTyp = in_array($d['kontakt_typ'] ?? '', ['interessent','kunde']) ? $d['kontakt_typ'] : 'kunde';
 
     $stmt = getDB()->prepare(
-        'UPDATE contacts SET suchbegriff=?,kundennummer=?,vertragsnummer=?,typ=?,bl_wert=?,notizen=?
+        'UPDATE contacts SET suchbegriff=?,kundennummer=?,vertragsnummer=?,kontakt_typ=?,typ=?,bl_wert=?,notizen=?
          WHERE id=?'
     );
     $stmt->execute([
         trim($d['suchbegriff']),
         $d['kundennummer']   ?? '',
         $d['vertragsnummer'] ?? '',
+        $kontaktTyp,
         $typ,
         $blWert,
         $d['notizen'] ?? '',

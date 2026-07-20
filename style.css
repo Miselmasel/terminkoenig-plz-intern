@@ -182,6 +182,11 @@ button {
   background: #642d7b;
   color: #fff;
 }
+.bo {
+  background: #e67e22;
+  color: #fff;
+}
+.bo:hover { filter: brightness(.88); }
 .bg {
   background: #642d7b;
   color: #fff;
