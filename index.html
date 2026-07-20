@@ -241,29 +241,34 @@
       <button onclick="closeImportModal()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#642d7b;padding:0;line-height:1;">✕</button>
     </div>
     <div style="display:flex;flex-direction:column;gap:10px;">
-      <div>
-        <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Kontakt *</div>
-        <select id="importContact" style="width:100%;box-sizing:border-box;margin:0;">
-          <option value="">— Kontakt wählen —</option>
-        </select>
-      </div>
-      <div>
-        <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Status</div>
-        <select id="importStatus" style="width:100%;box-sizing:border-box;margin:0;">
-          <option value="wunsch" selected>Wunsch</option>
-          <option value="reserviert">Reserviert</option>
-          <option value="belegt">Belegt</option>
-        </select>
+      <!-- Terminkönig-Vollimport: Kundendaten-Vorschau (wird bei TK-Format eingeblendet) -->
+      <div id="tkCustomerInfo" style="display:none;"></div>
+      <!-- Standard-Felder (Kontakt + Status) -->
+      <div id="importStandardFields">
+        <div style="margin-bottom:10px;">
+          <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Kontakt *</div>
+          <select id="importContact" style="width:100%;box-sizing:border-box;margin:0;">
+            <option value="">— Kontakt wählen —</option>
+          </select>
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Status</div>
+          <select id="importStatus" style="width:100%;box-sizing:border-box;margin:0;">
+            <option value="wunsch" selected>Wunsch</option>
+            <option value="reserviert">Reserviert</option>
+            <option value="belegt">Belegt</option>
+          </select>
+        </div>
       </div>
       <div>
         <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Datei (CSV, TXT oder XLS/XLSX)</div>
         <input type="file" id="importFile" accept=".csv,.txt,.xls,.xlsx" onchange="previewImport()" style="width:100%;box-sizing:border-box;font-size:12px;">
-        <div style="font-size:10px;color:#aaa;margin-top:3px;">Format: eine PLZ pro Zeile oder als Spalte – 3- oder 5-stellig, Prefix wird verwendet</div>
+        <div style="font-size:10px;color:#aaa;margin-top:3px;">Terminkönig-XLS: Kunden + PLZs werden automatisch erkannt</div>
       </div>
-      <div id="importPreview" style="display:none;background:#f8f8f8;border:1px solid #ddd;border-radius:3px;padding:8px;font-size:11px;max-height:100px;overflow-y:auto;line-height:1.5;"></div>
+      <div id="importPreview" style="display:none;background:#f8f8f8;border:1px solid #ddd;border-radius:3px;padding:8px;font-size:11px;max-height:120px;overflow-y:auto;line-height:1.5;"></div>
     </div>
     <div style="display:flex;gap:6px;margin-top:14px;">
-      <button class="bb" onclick="doImport()" style="flex:1;margin:0;">Importieren</button>
+      <button id="importDoBtn" class="bb" onclick="tkImportData ? doTkImport() : doImport()" style="flex:1;margin:0;">Importieren</button>
       <button class="bk" onclick="closeImportModal()" style="flex:1;margin:0;">Abbrechen</button>
     </div>
     <div id="importMsg" style="font-size:11px;margin-top:6px;min-height:14px;"></div>
@@ -341,6 +346,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=2"></script>
-<script src="admin.js?v=7"></script>
+<script src="admin.js?v=8"></script>
 </body>
 </html>

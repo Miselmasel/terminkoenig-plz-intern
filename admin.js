@@ -313,12 +313,21 @@ function aktiviereStatusUndResetSelection(status) {
 
 // ─── Import (CSV / XLS) ──────────────────────────────────────────
 var importedPlzList = [];
+var tkImportData    = null; // Terminkönig-Vollimport-Daten
 
 function openImportModal() {
   importedPlzList = [];
+  tkImportData    = null;
   document.getElementById('importPreview').style.display = 'none';
   document.getElementById('importPreview').innerHTML = '';
   document.getElementById('importMsg').textContent = '';
+  // Normalmodus: Kontakt/Status sichtbar, TK-Kundeninfo versteckt
+  var tkDiv = document.getElementById('tkCustomerInfo');
+  if (tkDiv) tkDiv.style.display = 'none';
+  var stdDiv = document.getElementById('importStandardFields');
+  if (stdDiv) stdDiv.style.display = 'block';
+  var btn = document.getElementById('importDoBtn');
+  if (btn) btn.textContent = 'Importieren';
   var fi = document.getElementById('importFile');
   if (fi) fi.value = '';
   document.getElementById('importModal').style.display = 'flex';
@@ -392,10 +401,19 @@ function previewImport() {
     var reader = new FileReader();
     reader.onload = function(e) {
       try {
-        var wb   = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
-        var text = wb.SheetNames.map(function(n) { return XLSX.utils.sheet_to_csv(wb.Sheets[n]); }).join('\n');
-        importedPlzList = parsePlzFromContent(text);
-        showImportPreview();
+        var wb = XLSX.read(new Uint8Array(e.target.result), { type: 'array', cellStyles: true });
+        // Terminkönig-Format erkennen: A2 = "Kunde:"
+        var ws0  = wb.Sheets[wb.SheetNames[0]];
+        var a2   = ws0['A2'] ? (ws0['A2'].v || '').toString().trim() : '';
+        if (a2 === 'Kunde:') {
+          tkImportData = parseTkXls(ws0);
+          showTkImportPreview(tkImportData);
+        } else {
+          tkImportData = null;
+          var text = wb.SheetNames.map(function(n) { return XLSX.utils.sheet_to_csv(wb.Sheets[n]); }).join('\n');
+          importedPlzList = parsePlzFromContent(text);
+          showImportPreview();
+        }
       } catch(err) {
         showImportPreviewError('Datei konnte nicht gelesen werden: ' + err.message);
       }
@@ -427,6 +445,188 @@ function showImportPreviewError(msg) {
   var preview = document.getElementById('importPreview');
   preview.style.display = 'block';
   preview.innerHTML = '<span style="color:#e74c3c;">' + esc(msg) + '</span>';
+}
+
+// ─── Terminkönig XLS Vollimport ──────────────────────────────────
+function getCellVal(ws, col, row) {
+  var cell = ws[XLSX.utils.encode_cell({r: row - 1, c: col - 1})];
+  return cell ? (cell.v !== undefined ? cell.v.toString().trim() : '') : '';
+}
+
+function parseTkXls(ws) {
+  // Kundendaten aus Kopfzeilen
+  var suchbegriff    = getCellVal(ws, 2, 2); // B2
+  var kundennummer   = getCellVal(ws, 5, 2); // E2
+  var vertragsnummer = getCellVal(ws, 4, 3); // D3
+  var typRaw         = getCellVal(ws, 8, 3); // H3 (BBM oder BL)
+  var typ            = typRaw.toLowerCase() === 'bl' ? 'bl' : 'bbm';
+  var eigenePlz      = getCellVal(ws, 2, 4); // B4
+
+  var wunschSet = {};
+  var belegtList = [];
+
+  var range = XLSX.utils.decode_range(ws['!ref'] || 'A1');
+  for (var r = 6; r <= range.e.r; r++) { // ab Zeile 7 (0-basiert: 6)
+    // Spalte A (0): Wunsch-PLZ (Umkreis-Vorschläge)
+    var cellA = ws[XLSX.utils.encode_cell({r: r, c: 0})];
+    if (cellA && /^\d{5}$/.test((cellA.v || '').toString())) {
+      wunschSet[cellA.v.toString().substring(0, 3)] = true;
+    }
+
+    // Spalte F (5): PLZ mit Datum in Spalte J (9) → belegt, sonst wunsch
+    var cellF = ws[XLSX.utils.encode_cell({r: r, c: 5})];
+    if (cellF && /^\d{5}$/.test((cellF.v || '').toString())) {
+      var plz3F = cellF.v.toString().substring(0, 3);
+      var cellJ = ws[XLSX.utils.encode_cell({r: r, c: 9})];
+      var datum = cellJ ? (cellJ.w || cellJ.v || '').toString().trim() : '';
+      if (datum) {
+        // Hat Datum → belegt (Datum normalisieren: TT.MM.JJJJ)
+        belegtList.push({ plz3: plz3F, datum: datum });
+        delete wunschSet[plz3F]; // belegt hat Vorrang vor wunsch
+      } else {
+        if (!wunschSet[plz3F]) wunschSet[plz3F] = true;
+      }
+    }
+  }
+
+  // Belegt-PLZ3s aus wunschSet entfernen (Duplikat-Schutz)
+  belegtList.forEach(function(b) { delete wunschSet[b.plz3]; });
+
+  return {
+    suchbegriff:    suchbegriff,
+    kundennummer:   kundennummer,
+    vertragsnummer: vertragsnummer,
+    typ:            typ,
+    eigenePlz:      eigenePlz,
+    wunschPlz:      Object.keys(wunschSet).sort(),
+    belegtList:     belegtList // [{plz3, datum}]
+  };
+}
+
+function showTkImportPreview(d) {
+  // Standard-Felder verstecken, TK-Info zeigen
+  var stdDiv = document.getElementById('importStandardFields');
+  if (stdDiv) stdDiv.style.display = 'none';
+  var tkDiv = document.getElementById('tkCustomerInfo');
+  if (tkDiv) {
+    tkDiv.style.display = 'block';
+    tkDiv.innerHTML =
+      '<div style="background:#eef6ee;border:1px solid #7bc87b;border-radius:4px;padding:8px;margin-bottom:8px;">' +
+        '<strong style="color:#276727;">Terminkönig-Format erkannt</strong>' +
+      '</div>' +
+      '<table style="width:100%;font-size:12px;border-collapse:collapse;">' +
+        '<tr><td style="color:#888;padding:2px 6px 2px 0;white-space:nowrap;">Suchbegriff</td><td><strong>' + esc(d.suchbegriff) + '</strong></td></tr>' +
+        '<tr><td style="color:#888;padding:2px 6px 2px 0;">Kd.Nr.</td><td>' + esc(d.kundennummer) + '</td></tr>' +
+        '<tr><td style="color:#888;padding:2px 6px 2px 0;">Vertrag</td><td>' + esc(d.vertragsnummer) + '</td></tr>' +
+        '<tr><td style="color:#888;padding:2px 6px 2px 0;">Typ</td><td>' + d.typ.toUpperCase() + '</td></tr>' +
+        (d.eigenePlz ? '<tr><td style="color:#888;padding:2px 6px 2px 0;">Eigene PLZ</td><td>' + esc(d.eigenePlz) + '</td></tr>' : '') +
+      '</table>';
+  }
+
+  var preview = document.getElementById('importPreview');
+  preview.style.display = 'block';
+  var belegtDatum = d.belegtList.length ? (' (Datum: ' + esc(d.belegtList[0].datum || '—') + ')') : '';
+  preview.innerHTML =
+    '<strong>' + d.wunschPlz.length + '</strong> PLZ als <span style="color:#8e44ad;">Wunsch</span><br>' +
+    '<strong>' + d.belegtList.length + '</strong> PLZ als <span style="color:#c0392b;">Belegt</span>' + belegtDatum;
+
+  var btn = document.getElementById('importDoBtn');
+  if (btn) btn.textContent = 'Kunden anlegen & importieren';
+}
+
+async function doTkImport() {
+  var d   = tkImportData;
+  var msg = document.getElementById('importMsg');
+  if (!d || (!d.wunschPlz.length && !d.belegtList.length)) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Keine PLZ-Daten gefunden.';
+    return;
+  }
+
+  var contactId;
+
+  if (localMode) {
+    // Lokal: Kontakt in localContacts anlegen
+    var existing = (localContacts || []).find(function(c) {
+      return c.kundennummer === d.kundennummer || c.suchbegriff === d.suchbegriff;
+    });
+    if (existing) {
+      contactId = existing.id;
+    } else {
+      contactId = localNextId++;
+      localStorage.setItem('localNextId', localNextId);
+      var nc = { id: contactId, suchbegriff: d.suchbegriff, kundennummer: d.kundennummer,
+                 vertragsnummer: d.vertragsnummer, typ: d.typ, bl_wert: null, notizen: '', plz_count: 0 };
+      localContacts.push(nc);
+      localStorage.setItem('localContacts', JSON.stringify(localContacts));
+      allContacts = localContacts.slice();
+      populateAllContactDropdowns();
+    }
+    // PLZs zuweisen
+    var suchbegriff = d.suchbegriff;
+    d.wunschPlz.forEach(function(plz3) {
+      if (!window.plzStatusData[plz3]) window.plzStatusData[plz3] = [];
+      var idx = window.plzStatusData[plz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
+      var entry = { plz3: plz3, status: 'wunsch', contact_id: contactId, suchbegriff: suchbegriff, notiz: '' };
+      if (idx >= 0) window.plzStatusData[plz3][idx] = entry; else window.plzStatusData[plz3].push(entry);
+    });
+    d.belegtList.forEach(function(b) {
+      if (!window.plzStatusData[b.plz3]) window.plzStatusData[b.plz3] = [];
+      var idx = window.plzStatusData[b.plz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
+      var entry = { plz3: b.plz3, status: 'belegt', contact_id: contactId, suchbegriff: suchbegriff, import_datum: b.datum, notiz: '' };
+      if (idx >= 0) window.plzStatusData[b.plz3][idx] = entry; else window.plzStatusData[b.plz3].push(entry);
+    });
+    updateStatusCount();
+    aktiviereStatusUndResetSelection('wunsch');
+    msg.style.color = '#27ae60';
+    msg.textContent = 'Importiert (lokal): ' + d.wunschPlz.length + ' Wunsch, ' + d.belegtList.length + ' Belegt.';
+    setTimeout(closeImportModal, 1400);
+    return;
+  }
+
+  // Server: Kontakt anlegen
+  try {
+    msg.style.color = '#888'; msg.textContent = 'Kontakt wird angelegt…';
+    var cRes = await fetch('api/contacts.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ suchbegriff: d.suchbegriff, kundennummer: d.kundennummer,
+                             vertragsnummer: d.vertragsnummer, typ: d.typ })
+    });
+    var cData = await cRes.json();
+    if (!cData.id) throw new Error(cData.error || 'Kontakt konnte nicht angelegt werden');
+    contactId = cData.id;
+    await loadContacts();
+
+    // Wunsch-PLZs
+    if (d.wunschPlz.length) {
+      msg.textContent = 'PLZ (Wunsch) werden zugewiesen…';
+      await fetch('api/plz_status.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plz3_list: d.wunschPlz, contact_id: contactId, status: 'wunsch' })
+      });
+    }
+    // Belegt-PLZs (mit Datum → notiz)
+    if (d.belegtList.length) {
+      msg.textContent = 'PLZ (Belegt) werden zugewiesen…';
+      var belegtPlz3 = d.belegtList.map(function(b) { return b.plz3; });
+      var datum = d.belegtList[0].datum || '';
+      await fetch('api/plz_status.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plz3_list: belegtPlz3, contact_id: contactId, status: 'belegt', notiz: datum })
+      });
+    }
+    await loadPlzStatus();
+    aktiviereStatusUndResetSelection('wunsch');
+    msg.style.color = '#27ae60';
+    msg.textContent = 'Importiert: ' + d.wunschPlz.length + ' Wunsch, ' + d.belegtList.length + ' Belegt.';
+    setTimeout(closeImportModal, 1400);
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Fehler: ' + e.message;
+  }
 }
 
 async function doImport() {
