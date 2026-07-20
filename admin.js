@@ -6,6 +6,16 @@ var allContacts      = [];
 var selectedPlz3     = null;
 var currentContactId = null;
 
+// localStorage-Fallback wenn PHP-Server nicht verfügbar (lokales Testen)
+var localMode = false;
+var localContacts = JSON.parse(localStorage.getItem('tk_contacts') || '[]');
+var localNextId   = parseInt(localStorage.getItem('tk_next_id')   || '1');
+
+function saveLocalContacts() {
+  localStorage.setItem('tk_contacts', JSON.stringify(localContacts));
+  localStorage.setItem('tk_next_id',  String(localNextId));
+}
+
 // ─── Login ────────────────────────────────────────────────────────
 // TEMPORÄR: Fake-Admin für lokales Testen – vor Go-Live entfernen!
 async function checkLogin() {
@@ -96,7 +106,6 @@ window.onPlzAdminClick = function(plz3) {
   var lp = document.getElementById('lp');
   if (lp) lp.scrollTop = 0;
 
-  // Linkes Panel öffnen wenn zugeklappt
   if (document.body.classList.contains('lp-col')) toggleLP();
 };
 
@@ -112,6 +121,16 @@ async function saveAssignment() {
   var contactId = document.getElementById('lpAssignContact').value || null;
   var notiz     = document.getElementById('lpAssignNote').value;
   var msg       = document.getElementById('lpAssignMsg');
+
+  if (localMode) {
+    window.plzStatusData[selectedPlz3] = { plz3: selectedPlz3, status: status, contact_id: contactId, notiz: notiz };
+    updateStatusCount();
+    if (typeof refreshLayer === 'function') refreshLayer(selectedPlz3);
+    msg.style.color = '#27ae60';
+    msg.textContent = 'Gespeichert (lokal).';
+    setTimeout(closeAssignPanel, 700);
+    return;
+  }
 
   try {
     var res    = await fetch('api/plz_status.php', {
@@ -138,12 +157,28 @@ async function saveAssignment() {
 
 // ─── Kontakte laden ───────────────────────────────────────────────
 async function loadContacts() {
-  try {
-    var res = await fetch('api/contacts.php');
-    allContacts = await res.json();
+  if (localMode) {
+    allContacts = localContacts.map(function(c) { return Object.assign({}, c); });
     renderContactList(allContacts);
     populateContactDropdown();
-  } catch(e) { console.warn('Kontakte nicht geladen:', e); }
+    return;
+  }
+  try {
+    var res = await fetch('api/contacts.php');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var data = await res.json();
+    if (!Array.isArray(data)) throw new Error('Keine Array-Antwort');
+    allContacts = data;
+    localMode = false;
+  } catch(e) {
+    console.warn('PHP-Server nicht erreichbar – nutze localStorage:', e);
+    localMode = true;
+    allContacts = localContacts.map(function(c) { return Object.assign({}, c); });
+    var hint = document.getElementById('lpLocalHint');
+    if (hint) hint.style.display = 'block';
+  }
+  renderContactList(allContacts);
+  populateContactDropdown();
 }
 
 function populateContactDropdown() {
@@ -151,12 +186,11 @@ function populateContactDropdown() {
   if (!sel) return;
   sel.innerHTML = '<option value="">— Kontakt wählen —</option>';
   allContacts.forEach(function(c) {
-    var opt  = document.createElement('option');
+    var opt = document.createElement('option');
     opt.value = c.id;
-    var name = c.type === 'kunde'
-      ? ((c.nachname || '') + (c.vorname ? ', ' + c.vorname : '') + (c.kundennummer ? ' [' + c.kundennummer + ']' : ''))
-      : (c.firma || ((c.vorname || '') + ' ' + (c.nachname || '')).trim());
-    opt.textContent = (c.type === 'kunde' ? 'K: ' : 'I: ') + (name.trim() || '—');
+    var label = c.suchbegriff || '—';
+    if (c.kundennummer) label += ' [' + c.kundennummer + ']';
+    opt.textContent = label;
     sel.appendChild(opt);
   });
 }
@@ -169,19 +203,18 @@ function renderContactList(contacts) {
     return;
   }
   list.innerHTML = contacts.map(function(c) {
-    var isK  = c.type === 'kunde';
-    var name = isK
-      ? (((c.nachname || '') + (c.vorname ? ', ' + c.vorname : '')).trim() || c.firma || '—')
-      : (c.firma || ((c.vorname || '') + ' ' + (c.nachname || '')).trim() || '—');
-    var sub  = isK
-      ? (c.kundennummer ? 'Kd. ' + c.kundennummer : (c.email || ''))
-      : (c.email || c.telefon || '');
-    var cnt  = c.plz_count || 0;
-    return '<div class="ct-item" onclick="selectContact(' + c.id + ')">' +
-      '<span class="ct-badge ' + (isK ? 'ct-k' : 'ct-i') + '">' + (isK ? 'K' : 'I') + '</span>' +
-      '<div class="ct-info">' +
-        '<div class="ct-name">' + esc(name) + '</div>' +
-        (sub ? '<div class="ct-sub">' + esc(sub) + '</div>' : '') +
+    var typLabel = c.typ === 'bl' ? 'BL' : 'BBM';
+    var typColor = c.typ === 'bl' ? '#2980b9' : '#642d7b';
+    var sub = [];
+    if (c.kundennummer)   sub.push('Kd. ' + c.kundennummer);
+    if (c.vertragsnummer) sub.push('Vtr. ' + c.vertragsnummer);
+    if (c.typ === 'bl' && c.bl_wert) sub.push('BL ' + c.bl_wert);
+    var cnt = c.plz_count || 0;
+    return '<div class="ct-item" onclick="selectContact(' + JSON.stringify(c.id) + ')">' +
+      '<span class="ct-badge" style="background:' + typColor + ';flex-shrink:0;width:28px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#fff;">' + typLabel + '</span>' +
+      '<div class="ct-info" style="flex:1;min-width:0;">' +
+        '<div class="ct-name">' + esc(c.suchbegriff || '—') + '</div>' +
+        (sub.length ? '<div class="ct-sub">' + esc(sub.join(' · ')) + '</div>' : '') +
       '</div>' +
       '<span class="ct-plz-count">' + cnt + '</span>' +
     '</div>';
@@ -196,31 +229,44 @@ function filterContacts() {
   var q = (document.getElementById('lpSearch').value || '').toLowerCase();
   if (!q) { renderContactList(allContacts); return; }
   renderContactList(allContacts.filter(function(c) {
-    return [c.vorname, c.nachname, c.firma, c.email, c.kundennummer, c.vertragsnummer, c.telefon]
+    return [c.suchbegriff, c.kundennummer, c.vertragsnummer, c.notizen]
       .join(' ').toLowerCase().indexOf(q) >= 0;
   }));
 }
 
 function selectContact(id) {
-  var c = allContacts.find(function(x) { return x.id === id; });
+  var c = allContacts.find(function(x) { return x.id === id || String(x.id) === String(id); });
   if (c) openContactForm(c);
+}
+
+// ─── BL-Dropdown ein-/ausblenden ─────────────────────────────────
+function updateBlDropdown() {
+  var blSelected = document.getElementById('cmTypBL').checked;
+  var group = document.getElementById('cmBlWertGroup');
+  if (group) group.style.display = blSelected ? 'block' : 'none';
 }
 
 // ─── Kontakt-Formular ─────────────────────────────────────────────
 function openContactForm(contact) {
   currentContactId = contact ? contact.id : null;
   document.getElementById('cmTitle').textContent = contact ? 'Kontakt bearbeiten' : 'Neuer Kontakt';
-  switchCmTab(contact ? contact.type : 'interessent');
-  document.getElementById('cmVorname').value        = contact ? (contact.vorname        || '') : '';
-  document.getElementById('cmNachname').value       = contact ? (contact.nachname       || '') : '';
-  document.getElementById('cmEmail').value          = contact ? (contact.email          || '') : '';
-  document.getElementById('cmTelefon').value        = contact ? (contact.telefon        || '') : '';
-  document.getElementById('cmFirma').value          = contact ? (contact.firma          || '') : '';
+
+  document.getElementById('cmSuchbegriff').value    = contact ? (contact.suchbegriff    || '') : '';
   document.getElementById('cmKundennummer').value   = contact ? (contact.kundennummer   || '') : '';
   document.getElementById('cmVertragsnummer').value = contact ? (contact.vertragsnummer || '') : '';
   document.getElementById('cmNotizen').value        = contact ? (contact.notizen        || '') : '';
-  document.getElementById('cmMsg').textContent      = '';
+
+  var typ = contact ? (contact.typ || 'bbm') : 'bbm';
+  document.getElementById('cmTypBBM').checked = (typ === 'bbm');
+  document.getElementById('cmTypBL').checked  = (typ === 'bl');
+
+  var blWert = contact ? (contact.bl_wert || 30) : 30;
+  document.getElementById('cmBlWert').value = String(blWert);
+
+  updateBlDropdown();
+  document.getElementById('cmMsg').textContent = '';
   document.getElementById('contactModal').style.display = 'flex';
+  setTimeout(function() { document.getElementById('cmSuchbegriff').focus(); }, 50);
 }
 
 function closeContactForm() {
@@ -228,26 +274,48 @@ function closeContactForm() {
   currentContactId = null;
 }
 
-function switchCmTab(type) {
-  document.getElementById('cmTabInt').classList.toggle('fm-tab-active',   type === 'interessent');
-  document.getElementById('cmTabKunde').classList.toggle('fm-tab-active', type === 'kunde');
-  document.getElementById('cmFieldsKunde').style.display = type === 'kunde' ? 'flex' : 'none';
-  document.getElementById('cmType').value = type;
-}
-
 async function saveContact() {
+  var suchbegriff = document.getElementById('cmSuchbegriff').value.trim();
+  if (!suchbegriff) {
+    document.getElementById('cmMsg').style.color = '#e74c3c';
+    document.getElementById('cmMsg').textContent = 'Suchbegriff ist erforderlich.';
+    document.getElementById('cmSuchbegriff').focus();
+    return;
+  }
+
+  var typ    = document.getElementById('cmTypBL').checked ? 'bl' : 'bbm';
+  var blWert = typ === 'bl' ? parseInt(document.getElementById('cmBlWert').value) : null;
+
   var d = {
-    type:           document.getElementById('cmType').value,
-    vorname:        document.getElementById('cmVorname').value.trim(),
-    nachname:       document.getElementById('cmNachname').value.trim(),
-    email:          document.getElementById('cmEmail').value.trim(),
-    telefon:        document.getElementById('cmTelefon').value.trim(),
-    firma:          document.getElementById('cmFirma').value.trim(),
+    suchbegriff:    suchbegriff,
     kundennummer:   document.getElementById('cmKundennummer').value.trim(),
     vertragsnummer: document.getElementById('cmVertragsnummer').value.trim(),
+    typ:            typ,
+    bl_wert:        blWert,
     notizen:        document.getElementById('cmNotizen').value.trim(),
   };
+
   var msg = document.getElementById('cmMsg');
+
+  if (localMode) {
+    if (currentContactId !== null) {
+      var idx = localContacts.findIndex(function(c) { return String(c.id) === String(currentContactId); });
+      if (idx >= 0) Object.assign(localContacts[idx], d);
+    } else {
+      d.id = localNextId++;
+      d.plz_count = 0;
+      localContacts.push(d);
+    }
+    saveLocalContacts();
+    allContacts = localContacts.map(function(c) { return Object.assign({}, c); });
+    renderContactList(allContacts);
+    populateContactDropdown();
+    msg.style.color = '#27ae60';
+    msg.textContent = 'Gespeichert (lokal).';
+    setTimeout(closeContactForm, 600);
+    return;
+  }
+
   try {
     var url    = currentContactId ? 'api/contacts.php?id=' + currentContactId : 'api/contacts.php';
     var method = currentContactId ? 'PUT' : 'POST';

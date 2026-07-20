@@ -29,47 +29,53 @@ if ($method === 'GET') {
          FROM contacts c
          LEFT JOIN plz_assignments p ON p.contact_id = c.id
          GROUP BY c.id
-         ORDER BY c.nachname, c.vorname, c.firma'
+         ORDER BY c.suchbegriff'
     );
     jsonOut($stmt->fetchAll());
 }
 
 if ($method === 'POST') {
     $d = json_decode(file_get_contents('php://input'), true);
+    if (empty($d['suchbegriff'])) {
+        jsonOut(['error' => 'Suchbegriff ist erforderlich'], 400);
+    }
+    $typ    = in_array($d['typ'] ?? '', ['bbm','bl']) ? $d['typ'] : 'bbm';
+    $blWert = ($typ === 'bl' && isset($d['bl_wert'])) ? intval($d['bl_wert']) : null;
+
     $stmt = getDB()->prepare(
-        'INSERT INTO contacts (type,vorname,nachname,email,telefon,firma,kundennummer,vertragsnummer,notizen)
-         VALUES (?,?,?,?,?,?,?,?,?)'
+        'INSERT INTO contacts (suchbegriff,kundennummer,vertragsnummer,typ,bl_wert,notizen)
+         VALUES (?,?,?,?,?,?)'
     );
     $stmt->execute([
-        $d['type'] ?? 'interessent',
-        $d['vorname']        ?? '',
-        $d['nachname']       ?? '',
-        $d['email']          ?? '',
-        $d['telefon']        ?? '',
-        $d['firma']          ?? '',
+        trim($d['suchbegriff']),
         $d['kundennummer']   ?? '',
         $d['vertragsnummer'] ?? '',
-        $d['notizen']        ?? '',
+        $typ,
+        $blWert,
+        $d['notizen'] ?? '',
     ]);
     jsonOut(['ok' => true, 'id' => getDB()->lastInsertId()], 201);
 }
 
 if ($method === 'PUT' && $id) {
     $d = json_decode(file_get_contents('php://input'), true);
+    if (empty($d['suchbegriff'])) {
+        jsonOut(['error' => 'Suchbegriff ist erforderlich'], 400);
+    }
+    $typ    = in_array($d['typ'] ?? '', ['bbm','bl']) ? $d['typ'] : 'bbm';
+    $blWert = ($typ === 'bl' && isset($d['bl_wert'])) ? intval($d['bl_wert']) : null;
+
     $stmt = getDB()->prepare(
-        'UPDATE contacts SET type=?,vorname=?,nachname=?,email=?,telefon=?,firma=?,
-         kundennummer=?,vertragsnummer=?,notizen=? WHERE id=?'
+        'UPDATE contacts SET suchbegriff=?,kundennummer=?,vertragsnummer=?,typ=?,bl_wert=?,notizen=?
+         WHERE id=?'
     );
     $stmt->execute([
-        $d['type']           ?? 'interessent',
-        $d['vorname']        ?? '',
-        $d['nachname']       ?? '',
-        $d['email']          ?? '',
-        $d['telefon']        ?? '',
-        $d['firma']          ?? '',
+        trim($d['suchbegriff']),
         $d['kundennummer']   ?? '',
         $d['vertragsnummer'] ?? '',
-        $d['notizen']        ?? '',
+        $typ,
+        $blWert,
+        $d['notizen'] ?? '',
         $id,
     ]);
     jsonOut(['ok' => true]);

@@ -19,17 +19,14 @@ CREATE TABLE IF NOT EXISTS users (
 INSERT INTO users (username, password_hash, name, role)
 VALUES ('admin', '$2y$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2.uheWG/igi', 'Administrator', 'admin');
 
--- Kontakte (Interessenten & Kunden)
+-- Kontakte
 CREATE TABLE IF NOT EXISTS contacts (
   id             INT AUTO_INCREMENT PRIMARY KEY,
-  type           ENUM('interessent','kunde') NOT NULL,
-  vorname        VARCHAR(100),
-  nachname       VARCHAR(100),
-  email          VARCHAR(255),
-  telefon        VARCHAR(50),
-  firma          VARCHAR(200),
+  suchbegriff    VARCHAR(200) NOT NULL,
   kundennummer   VARCHAR(100),
   vertragsnummer VARCHAR(100),
+  typ            ENUM('bbm','bl') NOT NULL DEFAULT 'bbm',
+  bl_wert        TINYINT,
   notizen        TEXT,
   erstellt_am    DATETIME DEFAULT CURRENT_TIMESTAMP,
   geaendert_am   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
@@ -41,7 +38,6 @@ CREATE TABLE IF NOT EXISTS plz_assignments (
   plz3           CHAR(3)  NOT NULL UNIQUE,
   contact_id     INT,
   status         ENUM('frei','reserviert','belegt') DEFAULT 'frei',
-  preisklasse    TINYINT,
   notiz          TEXT,
   zugewiesen_am  DATETIME DEFAULT CURRENT_TIMESTAMP,
   geaendert_am   DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
