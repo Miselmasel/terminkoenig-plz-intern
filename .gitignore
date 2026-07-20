@@ -1,0 +1,9 @@
+# Zugangsdaten - niemals ins Git!
+api/config.php
+.env
+
+# System
+node_modules/
+.DS_Store
+Thumbs.db
+*.log

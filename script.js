@@ -91,6 +91,11 @@ function styleFeature(feature) {
   if (selHol[plz3]) {
     return { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
   }
+  if (window.statusMode && window.plzStatusData && window.plzStatusData[plz3]) {
+    var st = window.plzStatusData[plz3].status;
+    if (st === 'belegt')     return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 1.5 };
+    if (st === 'reserviert') return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
+  }
   if (preisklassenMode) {
     var pk = PREISKLASSEN[plz3.substring(0, 2)];
     if (pk) {
@@ -205,6 +210,8 @@ function togglePLZ(plz3) {
   // PLZ ins Suchfeld setzen
   var si = document.getElementById("si");
   if (si) si.value = plz3;
+
+  if (typeof window.onPlzAdminClick === 'function') window.onPlzAdminClick(plz3);
 }
 
 function refreshLayer(plz3) {

@@ -1,0 +1,11 @@
+# Zugriff auf config.php verbieten
+<Files "config.php">
+    Order allow,deny
+    Deny from all
+</Files>
+
+# Verzeichnis-Listings deaktivieren
+Options -Indexes
+
+# PHP-Fehler nicht im Browser anzeigen (Sicherheit)
+php_flag display_errors off

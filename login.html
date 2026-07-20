@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminkönig – Interner Bereich</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    background: #f3eaf8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(100,45,123,.15);
+    width: 100%;
+    max-width: 340px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: #e4d4ec;
+    border-bottom: 2px solid #642d7b;
+    padding: 18px 20px 14px;
+    text-align: center;
+  }
+  .card-header img {
+    height: 30px;
+    display: block;
+    margin: 0 auto 6px;
+  }
+  .card-header span {
+    font-size: 11px;
+    font-weight: bold;
+    color: #642d7b;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .card-body {
+    padding: 22px 20px 20px;
+  }
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: bold;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  input[type="text"],
+  input[type="password"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    margin-bottom: 14px;
+    transition: border-color .15s;
+    outline: none;
+  }
+  input:focus {
+    border-color: #642d7b;
+    box-shadow: 0 0 0 2px rgba(100,45,123,.12);
+  }
+  button[type="submit"] {
+    width: 100%;
+    padding: 9px;
+    background: #642d7b;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  button[type="submit"]:hover { filter: brightness(.88); }
+  button[type="submit"]:disabled {
+    opacity: .6;
+    cursor: default;
+    filter: none;
+  }
+  .error {
+    background: #fdecea;
+    border: 1px solid #e74c3c;
+    color: #c0392b;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 12px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .error.show { display: block; }
+  .card-footer {
+    padding: 10px 20px 14px;
+    text-align: center;
+    font-size: 10px;
+    color: #aaa;
+  }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <img src="terminkoenig_logo.png" alt="Terminkönig">
+    <span>Interner Bereich</span>
+  </div>
+  <div class="card-body">
+    <div class="error" id="errMsg"></div>
+
+    <form id="loginForm" onsubmit="doLogin(event)">
+      <label for="username">Benutzername</label>
+      <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+
+      <label for="password">Passwort</label>
+      <input type="password" id="password" name="password" autocomplete="current-password" required>
+
+      <button type="submit" id="submitBtn">Anmelden</button>
+    </form>
+  </div>
+  <div class="card-footer">Terminkönig PLZ-Verwaltung &copy; 2025</div>
+</div>
+
+<script>
+async function doLogin(e) {
+  e.preventDefault();
+  const btn    = document.getElementById('submitBtn');
+  const errMsg = document.getElementById('errMsg');
+  errMsg.classList.remove('show');
+  btn.disabled = true;
+  btn.textContent = 'Bitte warten…';
+
+  try {
+    const res = await fetch('api/auth.php?action=login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        username: document.getElementById('username').value.trim(),
+        password: document.getElementById('password').value,
+      }),
+    });
+    const data = await res.json();
+    if (data.ok) {
+      window.location.href = 'index.html';
+    } else {
+      errMsg.textContent = data.error || 'Anmeldung fehlgeschlagen.';
+      errMsg.classList.add('show');
+      document.getElementById('password').value = '';
+      document.getElementById('password').focus();
+    }
+  } catch {
+    errMsg.textContent = 'Server nicht erreichbar.';
+    errMsg.classList.add('show');
+  }
+
+  btn.disabled = false;
+  btn.textContent = 'Anmelden';
+}
+</script>
+
+</body>
+</html>

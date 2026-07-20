@@ -3,13 +3,86 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Terminkönig PLZ Karte</title>
+<title>Terminkönig PLZ Karte – Intern</title>
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
-<link rel="stylesheet" href="style.css">
+<link rel="stylesheet" href="style.css?v=2">
 </head>
 <body>
+
+<!-- Toggle-Button linkes Panel -->
+<button id="lpToggleBtn" class="pnl-toggle lp-side" onclick="toggleLP()">◀</button>
+
+<!-- Linkes Admin-Panel -->
+<div id="lp">
+  <h2>
+    <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:22px;display:block;margin:0 auto;">
+    <div style="font-size:11px;font-weight:bold;margin-top:4px;">VERWALTUNG</div>
+  </h2>
+
+  <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+    <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
+    <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
+  </div>
+
+  <!-- Gebietsstatus -->
+  <div class="s">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">GEBIETSSTATUS</h3>
+      <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">einblenden</button>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;">
+      <div class="lr"><span class="ld" style="background:#c0392b"></span> Belegt</div>
+      <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
+    </div>
+    <div id="lpStatusCount" style="font-size:11px;color:#642d7b;font-weight:bold;margin-top:4px;min-height:14px;"></div>
+  </div>
+
+  <!-- PLZ Zuweisen (erscheint bei Klick auf Karte) -->
+  <div class="s" id="lpAssignPanel" style="display:none;background:#faf7fc;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">PLZ ZUWEISEN</h3>
+      <button onclick="closeAssignPanel()" style="width:auto;margin:0;padding:2px 7px;background:#ccc;color:#333;border:none;border-radius:3px;cursor:pointer;font-size:12px;">✕</button>
+    </div>
+    <div style="font-size:11px;color:#555;margin-bottom:6px;">
+      Gebiet: <strong id="lpAssignPlz"></strong>
+    </div>
+    <select id="lpAssignContact" style="margin-bottom:4px;">
+      <option value="">— Kontakt wählen —</option>
+    </select>
+    <select id="lpAssignStatus" style="margin-bottom:4px;">
+      <option value="belegt">Belegt</option>
+      <option value="reserviert">Reserviert</option>
+      <option value="frei">Frei / Freigeben</option>
+    </select>
+    <input type="text" id="lpAssignNote" placeholder="Notiz (optional)" style="margin-bottom:6px;">
+    <button class="bb" onclick="saveAssignment()" style="margin:0;">Speichern</button>
+    <div id="lpAssignMsg" style="font-size:11px;margin-top:4px;min-height:14px;"></div>
+  </div>
+
+  <!-- Kontakte -->
+  <div class="s" style="flex:1;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">KONTAKTE</h3>
+      <button class="bb" onclick="openContactForm(null)" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">+ Neu</button>
+    </div>
+    <div style="display:flex;gap:4px;margin-bottom:6px;">
+      <input type="text" id="lpSearch" placeholder="Suchen…" oninput="filterContacts()" style="flex:1;min-width:0;margin:0;">
+    </div>
+    <div id="lpContactList" style="font-size:12px;"></div>
+  </div>
+
+  <div style="padding:8px 10px;border-top:2px solid #e4d4ec;background:#faf7fc;font-size:10px;color:#aaa;text-align:center;margin-top:auto;">
+    Terminkönig Intern © 2025
+  </div>
+</div>
+
+<!-- Toggle-Button rechtes Panel -->
+<button id="sbToggleBtn" class="pnl-toggle sb-side" onclick="toggleSB()">▶</button>
+
 <div id="map"></div>
+
+<!-- Rechtes Panel (unverändert) -->
 <div id="sb">
   <h2>
     <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:26px;display:block;margin:0 auto;">
@@ -124,6 +197,7 @@
   </div>
 </div>
 
+<!-- Legal Overlay (unverändert) -->
 <div id="legal-overlay" onclick="closeLegal()">
   <div id="legal-box" onclick="event.stopPropagation()">
     <button id="legal-close" onclick="closeLegal()">✕</button>
@@ -131,8 +205,41 @@
   </div>
 </div>
 
+<!-- Kontakt-Formular Modal -->
+<div id="contactModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:9500;align-items:center;justify-content:center;">
+  <div style="background:#fff;border-radius:6px;padding:20px;max-width:380px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:Arial,sans-serif;font-size:13px;">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px;">
+      <h2 id="cmTitle" style="margin:0;font-size:14px;color:#642d7b;">Kontakt</h2>
+      <button onclick="closeContactForm()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#642d7b;padding:0;line-height:1;">✕</button>
+    </div>
+    <input type="hidden" id="cmType" value="interessent">
+    <div style="display:flex;gap:4px;margin-bottom:10px;">
+      <button id="cmTabInt" class="fm-tab fm-tab-active" onclick="switchCmTab('interessent')">Interessent</button>
+      <button id="cmTabKunde" class="fm-tab" onclick="switchCmTab('kunde')">Kunde</button>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px;">
+      <input type="text" id="cmVorname" placeholder="Vorname">
+      <input type="text" id="cmNachname" placeholder="Nachname">
+      <input type="text" id="cmFirma" placeholder="Firma">
+      <input type="email" id="cmEmail" placeholder="E-Mail">
+      <input type="tel" id="cmTelefon" placeholder="Telefon">
+      <div id="cmFieldsKunde" style="display:none;flex-direction:column;gap:6px;">
+        <input type="text" id="cmKundennummer" placeholder="Kundennummer">
+        <input type="text" id="cmVertragsnummer" placeholder="Vertragsnummer">
+      </div>
+      <textarea id="cmNotizen" placeholder="Notizen" rows="3" style="width:100%;padding:5px;border:1px solid #ccc;border-radius:3px;font-size:12px;font-family:Arial,sans-serif;resize:vertical;box-sizing:border-box;"></textarea>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:12px;">
+      <button class="bb" onclick="saveContact()" style="flex:1;">Speichern</button>
+      <button class="bk" onclick="closeContactForm()" style="flex:1;">Abbrechen</button>
+    </div>
+    <div id="cmMsg" style="font-size:11px;margin-top:6px;min-height:14px;"></div>
+  </div>
+</div>
+
 <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="script.js"></script>
+<script src="admin.js"></script>
 </body>
 </html>
