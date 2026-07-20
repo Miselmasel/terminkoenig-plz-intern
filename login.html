@@ -115,11 +115,14 @@
     <span>Interner Bereich</span>
   </div>
   <div class="card-body">
+    <div id="successMsg" style="background:#eaf7ee;border:1px solid #7bc87b;color:#276727;border-radius:4px;padding:7px 10px;font-size:12px;margin-bottom:12px;display:none;">
+      ✓ Passwort gesetzt – bitte jetzt anmelden.
+    </div>
     <div class="error" id="errMsg"></div>
 
     <form id="loginForm" onsubmit="doLogin(event)">
-      <label for="username">Benutzername</label>
-      <input type="text" id="username" name="username" autocomplete="username" autofocus required>
+      <label for="email">E-Mail-Adresse</label>
+      <input type="email" id="email" name="email" autocomplete="email" autofocus required>
 
       <label for="password">Passwort</label>
       <input type="password" id="password" name="password" autocomplete="current-password" required>
@@ -131,6 +134,10 @@
 </div>
 
 <script>
+if (new URLSearchParams(location.search).get('activated') === '1') {
+  document.getElementById('successMsg').style.display = 'block';
+}
+
 async function doLogin(e) {
   e.preventDefault();
   const btn    = document.getElementById('submitBtn');
@@ -144,13 +151,13 @@ async function doLogin(e) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        username: document.getElementById('username').value.trim(),
+        email:    document.getElementById('email').value.trim(),
         password: document.getElementById('password').value,
       }),
     });
     const data = await res.json();
     if (data.ok) {
-      window.location.href = 'index.html';
+      window.location.href = data.role === 'admin' ? 'index.html' : 'user.html';
     } else {
       errMsg.textContent = data.error || 'Anmeldung fehlgeschlagen.';
       errMsg.classList.add('show');

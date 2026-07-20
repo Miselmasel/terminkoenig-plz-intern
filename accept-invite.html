@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Terminkönig – Zugang einrichten</title>
+<link rel="icon" type="image/png" href="favicon.png">
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: Arial, sans-serif;
+    font-size: 13px;
+    background: #f3eaf8;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+  .card {
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 24px rgba(100,45,123,.15);
+    width: 100%;
+    max-width: 360px;
+    overflow: hidden;
+  }
+  .card-header {
+    background: #e4d4ec;
+    border-bottom: 2px solid #642d7b;
+    padding: 18px 20px 14px;
+    text-align: center;
+  }
+  .card-header img { height: 30px; display: block; margin: 0 auto 6px; }
+  .card-header span {
+    font-size: 11px;
+    font-weight: bold;
+    color: #642d7b;
+    letter-spacing: .5px;
+    text-transform: uppercase;
+  }
+  .card-body { padding: 22px 20px 20px; }
+  label {
+    display: block;
+    font-size: 11px;
+    font-weight: bold;
+    color: #555;
+    text-transform: uppercase;
+    margin-bottom: 4px;
+  }
+  input[type="password"] {
+    width: 100%;
+    padding: 8px 10px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    margin-bottom: 14px;
+    transition: border-color .15s;
+    outline: none;
+  }
+  input:focus { border-color: #642d7b; box-shadow: 0 0 0 2px rgba(100,45,123,.12); }
+  button[type="submit"] {
+    width: 100%;
+    padding: 9px;
+    background: #642d7b;
+    color: #fff;
+    border: none;
+    border-radius: 4px;
+    font-size: 13px;
+    font-family: Arial, sans-serif;
+    font-weight: bold;
+    cursor: pointer;
+    transition: filter .15s;
+  }
+  button[type="submit"]:hover { filter: brightness(.88); }
+  button[type="submit"]:disabled { opacity: .6; cursor: default; filter: none; }
+  .error {
+    background: #fdecea;
+    border: 1px solid #e74c3c;
+    color: #c0392b;
+    border-radius: 4px;
+    padding: 7px 10px;
+    font-size: 12px;
+    margin-bottom: 12px;
+    display: none;
+  }
+  .error.show { display: block; }
+  .hint {
+    background: #f3eaf8;
+    border: 1px solid #c8a8dc;
+    border-radius: 4px;
+    padding: 8px 10px;
+    font-size: 12px;
+    color: #642d7b;
+    margin-bottom: 14px;
+  }
+  .success {
+    text-align: center;
+    color: #27ae60;
+    font-size: 13px;
+    padding: 10px 0;
+    display: none;
+  }
+  .loading { text-align: center; color: #642d7b; padding: 10px 0; font-size: 13px; }
+  .card-footer { padding: 10px 20px 14px; text-align: center; font-size: 10px; color: #aaa; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="card-header">
+    <img src="terminkoenig_logo.png" alt="Terminkönig">
+    <span>Zugang einrichten</span>
+  </div>
+  <div class="card-body">
+    <div class="loading" id="loadingMsg">Einladungslink wird geprüft…</div>
+    <div class="error" id="errMsg"></div>
+
+    <form id="setPassForm" onsubmit="doSetPassword(event)" style="display:none;">
+      <div class="hint">
+        Einladung für: <strong id="inviteEmail"></strong>
+      </div>
+
+      <label for="password">Neues Passwort</label>
+      <input type="password" id="password" name="password"
+             autocomplete="new-password" required minlength="8"
+             placeholder="Mindestens 8 Zeichen">
+
+      <label for="password2">Passwort bestätigen</label>
+      <input type="password" id="password2" name="password2"
+             autocomplete="new-password" required minlength="8"
+             placeholder="Passwort wiederholen">
+
+      <button type="submit" id="submitBtn">Passwort setzen &amp; anmelden</button>
+    </form>
+
+    <div class="success" id="successMsg">
+      ✓ Passwort gesetzt!<br>Sie werden weitergeleitet…
+    </div>
+  </div>
+  <div class="card-footer">Terminkönig PLZ-Verwaltung &copy; 2025</div>
+</div>
+
+<script>
+var inviteToken = new URLSearchParams(location.search).get('token');
+
+async function init() {
+  if (!inviteToken) {
+    showError('Kein Einladungstoken gefunden.');
+    return;
+  }
+  try {
+    var res  = await fetch('api/invite.php?token=' + encodeURIComponent(inviteToken));
+    var data = await res.json();
+    if (!data.ok) {
+      showError(data.error || 'Ungültiger Einladungslink.');
+      return;
+    }
+    document.getElementById('loadingMsg').style.display = 'none';
+    document.getElementById('inviteEmail').textContent = data.email;
+    document.getElementById('setPassForm').style.display = '';
+    document.getElementById('password').focus();
+  } catch(e) {
+    showError('Server nicht erreichbar.');
+  }
+}
+
+function showError(msg) {
+  document.getElementById('loadingMsg').style.display = 'none';
+  var el = document.getElementById('errMsg');
+  el.textContent = msg;
+  el.classList.add('show');
+}
+
+async function doSetPassword(e) {
+  e.preventDefault();
+  var pass  = document.getElementById('password').value;
+  var pass2 = document.getElementById('password2').value;
+  var btn   = document.getElementById('submitBtn');
+  var errEl = document.getElementById('errMsg');
+
+  errEl.classList.remove('show');
+
+  if (pass !== pass2) {
+    errEl.textContent = 'Die Passwörter stimmen nicht überein.';
+    errEl.classList.add('show');
+    document.getElementById('password2').focus();
+    return;
+  }
+  if (pass.length < 8) {
+    errEl.textContent = 'Passwort muss mindestens 8 Zeichen lang sein.';
+    errEl.classList.add('show');
+    return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Bitte warten…';
+
+  try {
+    var res  = await fetch('api/invite.php?action=set-password', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ token: inviteToken, password: pass }),
+    });
+    var data = await res.json();
+    if (data.ok) {
+      document.getElementById('setPassForm').style.display = 'none';
+      document.getElementById('successMsg').style.display = '';
+      setTimeout(function() { location.href = 'login.html?activated=1'; }, 2000);
+    } else {
+      errEl.textContent = data.error || 'Fehler beim Setzen des Passworts.';
+      errEl.classList.add('show');
+      btn.disabled = false;
+      btn.textContent = 'Passwort setzen & anmelden';
+    }
+  } catch(e2) {
+    errEl.textContent = 'Server nicht erreichbar.';
+    errEl.classList.add('show');
+    btn.disabled = false;
+    btn.textContent = 'Passwort setzen & anmelden';
+  }
+}
+
+init();
+</script>
+
+</body>
+</html>

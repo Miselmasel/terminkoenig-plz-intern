@@ -21,6 +21,9 @@ function saveLocalContacts() {
 async function checkLogin() {
   var el = document.getElementById('lpUserName');
   if (el) el.textContent = 'Admin (Test)';
+  window.currentUserRole = 'admin';
+  var um = document.getElementById('lpUserMgmt');
+  if (um) { um.style.display = ''; loadUsers(); }
 }
 /* ORIGINAL – wieder aktivieren wenn Server läuft:
 async function checkLogin() {
@@ -28,8 +31,13 @@ async function checkLogin() {
     var res  = await fetch('api/auth.php?action=me');
     var data = await res.json();
     if (!data.ok) { location.href = 'login.html'; return; }
+    window.currentUserRole = data.role;
     var el = document.getElementById('lpUserName');
-    if (el) el.textContent = data.name;
+    if (el) el.textContent = data.name || data.email;
+    if (data.role === 'admin') {
+      var um = document.getElementById('lpUserMgmt');
+      if (um) { um.style.display = ''; loadUsers(); }
+    }
   } catch(e) { location.href = 'login.html'; }
 }
 */
@@ -534,19 +542,17 @@ function showTkImportPreview(d) {
   if (btn) btn.textContent = 'Kunden anlegen & importieren';
 }
 
-async function doTkImport() {
-  var d   = tkImportData;
-  var msg = document.getElementById('importMsg');
+// Kern-Logik für TK-Kunden-Import (Modal und Sidebar teilen sich diese Funktion)
+async function performTkImport(d, msgEl, onSuccess) {
   if (!d || (!d.wunschPlz.length && !d.belegtList.length)) {
-    msg.style.color = '#e74c3c';
-    msg.textContent = 'Keine PLZ-Daten gefunden.';
+    msgEl.style.color = '#e74c3c';
+    msgEl.textContent = 'Keine PLZ-Daten gefunden.';
     return;
   }
 
   var contactId;
 
   if (localMode) {
-    // Lokal: Kontakt in localContacts anlegen
     var existing = (localContacts || []).find(function(c) {
       return c.kundennummer === d.kundennummer || c.suchbegriff === d.suchbegriff;
     });
@@ -554,39 +560,37 @@ async function doTkImport() {
       contactId = existing.id;
     } else {
       contactId = localNextId++;
-      localStorage.setItem('localNextId', localNextId);
       var nc = { id: contactId, suchbegriff: d.suchbegriff, kundennummer: d.kundennummer,
                  vertragsnummer: d.vertragsnummer, typ: d.typ, bl_wert: null, notizen: '', plz_count: 0 };
       localContacts.push(nc);
-      localStorage.setItem('localContacts', JSON.stringify(localContacts));
+      saveLocalContacts();
       allContacts = localContacts.slice();
       populateAllContactDropdowns();
     }
-    // PLZs zuweisen
-    var suchbegriff = d.suchbegriff;
+    var sb = d.suchbegriff;
     d.wunschPlz.forEach(function(plz3) {
       if (!window.plzStatusData[plz3]) window.plzStatusData[plz3] = [];
       var idx = window.plzStatusData[plz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
-      var entry = { plz3: plz3, status: 'wunsch', contact_id: contactId, suchbegriff: suchbegriff, notiz: '' };
+      var entry = { plz3: plz3, status: 'wunsch', contact_id: contactId, suchbegriff: sb, notiz: '' };
       if (idx >= 0) window.plzStatusData[plz3][idx] = entry; else window.plzStatusData[plz3].push(entry);
     });
     d.belegtList.forEach(function(b) {
       if (!window.plzStatusData[b.plz3]) window.plzStatusData[b.plz3] = [];
       var idx = window.plzStatusData[b.plz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
-      var entry = { plz3: b.plz3, status: 'belegt', contact_id: contactId, suchbegriff: suchbegriff, import_datum: b.datum, notiz: '' };
+      var entry = { plz3: b.plz3, status: 'belegt', contact_id: contactId, suchbegriff: sb, import_datum: b.datum, notiz: '' };
       if (idx >= 0) window.plzStatusData[b.plz3][idx] = entry; else window.plzStatusData[b.plz3].push(entry);
     });
     updateStatusCount();
     aktiviereStatusUndResetSelection('wunsch');
-    msg.style.color = '#27ae60';
-    msg.textContent = 'Importiert (lokal): ' + d.wunschPlz.length + ' Wunsch, ' + d.belegtList.length + ' Belegt.';
-    setTimeout(closeImportModal, 1400);
+    msgEl.style.color = '#27ae60';
+    msgEl.textContent = 'Importiert (lokal): ' + d.wunschPlz.length + ' Wunsch, ' + d.belegtList.length + ' Belegt.';
+    if (onSuccess) setTimeout(onSuccess, 1400);
     return;
   }
 
-  // Server: Kontakt anlegen
   try {
-    msg.style.color = '#888'; msg.textContent = 'Kontakt wird angelegt…';
+    msgEl.style.color = '#888';
+    msgEl.textContent = 'Kontakt wird angelegt…';
     var cRes = await fetch('api/contacts.php', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -597,36 +601,99 @@ async function doTkImport() {
     if (!cData.id) throw new Error(cData.error || 'Kontakt konnte nicht angelegt werden');
     contactId = cData.id;
     await loadContacts();
-
-    // Wunsch-PLZs
     if (d.wunschPlz.length) {
-      msg.textContent = 'PLZ (Wunsch) werden zugewiesen…';
+      msgEl.textContent = 'PLZ (Wunsch) werden zugewiesen…';
       await fetch('api/plz_status.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ plz3_list: d.wunschPlz, contact_id: contactId, status: 'wunsch' })
       });
     }
-    // Belegt-PLZs (mit Datum → notiz)
     if (d.belegtList.length) {
-      msg.textContent = 'PLZ (Belegt) werden zugewiesen…';
-      var belegtPlz3 = d.belegtList.map(function(b) { return b.plz3; });
-      var datum = d.belegtList[0].datum || '';
+      msgEl.textContent = 'PLZ (Belegt) werden zugewiesen…';
       await fetch('api/plz_status.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ plz3_list: belegtPlz3, contact_id: contactId, status: 'belegt', notiz: datum })
+        body: JSON.stringify({ plz3_list: d.belegtList.map(function(b) { return b.plz3; }),
+                               contact_id: contactId, status: 'belegt', notiz: d.belegtList[0].datum || '' })
       });
     }
     await loadPlzStatus();
     aktiviereStatusUndResetSelection('wunsch');
-    msg.style.color = '#27ae60';
-    msg.textContent = 'Importiert: ' + d.wunschPlz.length + ' Wunsch, ' + d.belegtList.length + ' Belegt.';
-    setTimeout(closeImportModal, 1400);
+    msgEl.style.color = '#27ae60';
+    msgEl.textContent = 'Importiert: ' + d.wunschPlz.length + ' Wunsch, ' + d.belegtList.length + ' Belegt.';
+    if (onSuccess) setTimeout(onSuccess, 1400);
   } catch(e) {
-    msg.style.color = '#e74c3c';
-    msg.textContent = 'Fehler: ' + e.message;
+    msgEl.style.color = '#e74c3c';
+    msgEl.textContent = 'Fehler: ' + e.message;
   }
+}
+
+async function doTkImport() {
+  await performTkImport(tkImportData, document.getElementById('importMsg'), closeImportModal);
+}
+
+// ─── Kunden-Import Sidebar (TK-Format XLS) ───────────────────────
+var kiImportData = null;
+
+function kiPreview() {
+  var file    = document.getElementById('kiFile').files[0];
+  var box     = document.getElementById('kiPreviewBox');
+  var btn     = document.getElementById('kiImportBtn');
+  var msg     = document.getElementById('kiMsg');
+  kiImportData        = null;
+  box.style.display   = 'none';
+  btn.style.display   = 'none';
+  msg.textContent     = '';
+  if (!file) return;
+  if (typeof XLSX === 'undefined') {
+    msg.style.color = '#c0392b';
+    msg.textContent = 'SheetJS nicht geladen – Seite neu laden.';
+    return;
+  }
+  var reader = new FileReader();
+  reader.onload = function(e) {
+    try {
+      var wb  = XLSX.read(new Uint8Array(e.target.result), { type: 'array' });
+      var ws0 = wb.Sheets[wb.SheetNames[0]];
+      var a2  = ws0['A2'] ? (ws0['A2'].v || '').toString().trim() : '';
+      if (a2 !== 'Kunde:') {
+        msg.style.color = '#c0392b';
+        msg.textContent = 'Kein Terminkönig-Format erkannt (A2 ≠ „Kunde:").';
+        return;
+      }
+      kiImportData = parseTkXls(ws0);
+      var d = kiImportData;
+      box.style.display = 'block';
+      box.innerHTML =
+        '<strong>' + esc(d.suchbegriff || '—') + '</strong>' +
+        (d.kundennummer ? ' <span style="color:#888;font-size:10px;">Kd. ' + esc(d.kundennummer) + '</span>' : '') +
+        (d.vertragsnummer ? ' <span style="color:#888;font-size:10px;">· Vtr. ' + esc(d.vertragsnummer) + '</span>' : '') +
+        '<br>' +
+        '<span style="color:#8e44ad;">' + d.wunschPlz.length + ' Wunsch</span>' +
+        ' &nbsp;·&nbsp; ' +
+        '<span style="color:#c0392b;">' + d.belegtList.length + ' Belegt</span>';
+      btn.style.display = '';
+    } catch(err) {
+      msg.style.color = '#c0392b';
+      msg.textContent = 'Datei konnte nicht gelesen werden.';
+    }
+  };
+  reader.readAsArrayBuffer(file);
+}
+
+async function kiImport() {
+  var btn = document.getElementById('kiImportBtn');
+  var msg = document.getElementById('kiMsg');
+  btn.disabled = true;
+  await performTkImport(kiImportData, msg, function() {
+    kiImportData = null;
+    document.getElementById('kiFile').value  = '';
+    document.getElementById('kiPreviewBox').style.display = 'none';
+    btn.style.display = 'none';
+    btn.disabled      = false;
+  });
+  btn.disabled = false;
 }
 
 async function doImport() {
@@ -871,6 +938,118 @@ async function saveContact() {
   } catch(e) {
     msg.style.color = '#e74c3c';
     msg.textContent = 'Server nicht erreichbar.';
+  }
+}
+
+// ─── Benutzerverwaltung ───────────────────────────────────────────
+var allUsers = [];
+
+async function loadUsers() {
+  try {
+    var res = await fetch('api/users.php');
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    allUsers = await res.json();
+    renderUserList();
+  } catch(e) {
+    var list = document.getElementById('lpUserList');
+    if (list) list.innerHTML = '<div style="color:#aaa;font-size:10px;padding:4px 0;">Server nicht erreichbar.</div>';
+  }
+}
+
+function renderUserList() {
+  var list = document.getElementById('lpUserList');
+  if (!list) return;
+  if (!allUsers.length) {
+    list.innerHTML = '<div style="color:#aaa;font-size:10px;padding:4px 0;">Keine Benutzer vorhanden.</div>';
+    return;
+  }
+  list.innerHTML = allUsers.map(function(u) {
+    var pending    = u.invite_pending == 1;
+    var statusHtml = pending
+      ? '<div style="color:#e67e22;font-size:10px;">⏳ Einladung ausstehend</div>'
+      : '<div style="color:#27ae60;font-size:10px;">✓ Aktiv</div>';
+    var adminBadge = u.role === 'admin'
+      ? '<span style="background:#642d7b;color:#fff;border-radius:2px;padding:1px 4px;font-size:9px;margin-left:4px;">Admin</span>'
+      : '';
+    var delBtn = u.role !== 'admin'
+      ? '<button onclick="deleteUserConfirm(' + u.id + ')" title="Löschen" ' +
+        'style="flex-shrink:0;background:#c0392b;color:#fff;border:none;border-radius:3px;' +
+        'padding:2px 7px;font-size:11px;cursor:pointer;line-height:1.5;">✕</button>'
+      : '';
+    return '<div style="border-bottom:1px solid #e4d4ec;padding:5px 0;display:flex;align-items:center;gap:6px;">' +
+      '<div style="flex:1;min-width:0;">' +
+        '<div style="font-size:11px;font-weight:bold;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' +
+          esc(u.name || u.email) + adminBadge +
+        '</div>' +
+        (u.name ? '<div style="color:#888;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(u.email) + '</div>' : '') +
+        statusHtml +
+      '</div>' +
+      delBtn +
+    '</div>';
+  }).join('');
+}
+
+function openInviteUser() {
+  var form  = document.getElementById('lpInviteForm');
+  var email = document.getElementById('lpInviteEmail');
+  var msg   = document.getElementById('lpInviteMsg');
+  if (!form) return;
+  form.style.display  = '';
+  email.value         = '';
+  msg.textContent     = '';
+  msg.style.color     = '#642d7b';
+  email.focus();
+}
+
+function closeInviteUser() {
+  var form = document.getElementById('lpInviteForm');
+  if (form) form.style.display = 'none';
+}
+
+async function sendInvite() {
+  var emailEl = document.getElementById('lpInviteEmail');
+  var msg     = document.getElementById('lpInviteMsg');
+  var email   = emailEl ? emailEl.value.trim() : '';
+  if (!email) { msg.textContent = 'Bitte E-Mail-Adresse eingeben.'; return; }
+  msg.style.color = '#888';
+  msg.textContent = 'Einladung wird gesendet…';
+  try {
+    var res  = await fetch('api/invite.php', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ email: email }),
+    });
+    var data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = 'Einladung gesendet!';
+      emailEl.value   = '';
+      loadUsers();
+      setTimeout(closeInviteUser, 2000);
+    } else {
+      msg.style.color = '#c0392b';
+      msg.textContent = data.error || 'Fehler beim Senden.';
+    }
+  } catch(e) {
+    msg.style.color = '#c0392b';
+    msg.textContent = 'Server nicht erreichbar.';
+  }
+}
+
+async function deleteUserConfirm(id) {
+  var u     = allUsers.find(function(x) { return x.id == id; });
+  var label = u ? (u.name || u.email) : 'diesen Benutzer';
+  if (!confirm('Benutzer "' + label + '" wirklich löschen?')) return;
+  try {
+    var res  = await fetch('api/users.php?id=' + id, { method: 'DELETE' });
+    var data = await res.json();
+    if (data.ok) {
+      loadUsers();
+    } else {
+      alert(data.error || 'Löschen fehlgeschlagen.');
+    }
+  } catch(e) {
+    alert('Server nicht erreichbar.');
   }
 }
 

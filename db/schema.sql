@@ -5,14 +5,16 @@
 
 -- Benutzer (interner Login)
 CREATE TABLE IF NOT EXISTS users (
-  id            INT AUTO_INCREMENT PRIMARY KEY,
-  username      VARCHAR(50)  NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  name          VARCHAR(100),
-  email         VARCHAR(255),
-  role          ENUM('admin','user') DEFAULT 'user',
-  erstellt_am   DATETIME DEFAULT CURRENT_TIMESTAMP,
-  letzter_login DATETIME
+  id             INT AUTO_INCREMENT PRIMARY KEY,
+  username       VARCHAR(255) NOT NULL UNIQUE,
+  password_hash  VARCHAR(255) NOT NULL DEFAULT '',
+  name           VARCHAR(100),
+  email          VARCHAR(255),
+  invite_token   VARCHAR(64)  NULL DEFAULT NULL,
+  invite_expires DATETIME     NULL DEFAULT NULL,
+  role           ENUM('admin','user') DEFAULT 'user',
+  erstellt_am    DATETIME DEFAULT CURRENT_TIMESTAMP,
+  letzter_login  DATETIME
 );
 
 -- Standardbenutzer: admin / admin123 (BITTE SOFORT ÄNDERN!)

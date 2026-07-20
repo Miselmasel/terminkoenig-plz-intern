@@ -6,7 +6,11 @@ $method = $_SERVER['REQUEST_METHOD'];
 $id     = intval($_GET['id'] ?? 0);
 
 if ($method === 'GET') {
-    $stmt = getDB()->query('SELECT id, username, name, email, role, erstellt_am, letzter_login FROM users ORDER BY name');
+    $stmt = getDB()->query(
+        "SELECT id, username, name, email, role, erstellt_am, letzter_login,
+                CASE WHEN password_hash = '' THEN 1 ELSE 0 END AS invite_pending
+         FROM users ORDER BY name"
+    );
     jsonOut($stmt->fetchAll());
 }
 
