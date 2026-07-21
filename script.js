@@ -98,7 +98,7 @@ function styleFeature(feature) {
     // Belegt/Reserviert immer anzeigen; Wunsch nur wenn statusMode aktiv
     if (sts.indexOf('belegt')     >= 0) return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 2 };
     if (sts.indexOf('reserviert') >= 0) return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
-    if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#8e44ad', fillOpacity: 0.30, color: '#6c3483', weight: 1.0 };
+    if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#c8a200', fillOpacity: 0.30, color: '#9a7800', weight: 1.0 };
   }
   if (preisklassenMode) {
     var pk = PREISKLASSEN[plz3.substring(0, 2)];
@@ -147,7 +147,7 @@ function onEachFeature(feature, layer) {
                (reserviertE.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;') + d;
       }
       if (wunschList.length) {
-        txt += '<br><span style="color:#8e44ad;">Wunsch:</span> ' +
+        txt += '<br><span style="color:#c8a200;">Wunsch:</span> ' +
                wunschList.map(function(e) { return (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;'); }).join(', ');
       }
     }
