@@ -16,6 +16,24 @@ function saveLocalContacts() {
   localStorage.setItem('tk_next_id',  String(localNextId));
 }
 
+// ─── Dark Mode ────────────────────────────────────────────────────
+function toggleTheme() {
+  var isDark = document.body.getAttribute('data-theme') === 'dark';
+  var next   = isDark ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  var btn = document.getElementById('lpThemeBtn');
+  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+}
+(function() {
+  var saved = localStorage.getItem('theme') || 'light';
+  document.body.setAttribute('data-theme', saved);
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('lpThemeBtn');
+    if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  });
+})();
+
 // ─── Login ────────────────────────────────────────────────────────
 async function checkLogin() {
   try {

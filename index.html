@@ -24,6 +24,7 @@
     <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
     <div style="display:flex;gap:4px;">
       <button class="bk" onclick="openChangePassword()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Passwort ändern">🔑</button>
+      <button class="bk" id="lpThemeBtn" onclick="toggleTheme()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Dark Mode">🌙</button>
       <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
     </div>
   </div>
@@ -37,7 +38,7 @@
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;">
       <div class="lr"><span class="ld" style="background:#c0392b"></span> Belegt</div>
       <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
-      <div class="lr"><span class="ld" style="background:#8e44ad;opacity:.5;"></span> Wunsch</div>
+      <div class="lr"><span class="ld" style="background:#c8a200;opacity:.6;"></span> Wunsch</div>
     </div>
     <div id="lpStatusCount" style="font-size:11px;color:#642d7b;font-weight:bold;margin-top:4px;min-height:14px;"></div>
   </div>
@@ -500,6 +501,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=2"></script>
-<script src="admin.js?v=11"></script>
+<script src="admin.js?v=12"></script>
 </body>
 </html>
