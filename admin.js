@@ -28,6 +28,8 @@ async function checkLogin() {
     if (data.role === 'admin') {
       var um = document.getElementById('lpUserMgmt');
       if (um) { um.style.display = ''; loadUsers(); }
+      var bm = document.getElementById('lpBackupMgmt');
+      if (bm) { bm.style.display = ''; loadBackups(); }
     }
   } catch(e) { location.href = 'login.html'; }
 }
@@ -1442,6 +1444,81 @@ async function deleteDocument(id) {
     await fetch('api/documents.php?id=' + id, { method: 'DELETE' });
     if (currentContactId) await loadContactDocuments(currentContactId);
   } catch(e) { console.warn('Dokument löschen fehlgeschlagen:', e); }
+}
+
+// ─── Datensicherung ───────────────────────────────────────────────
+async function loadBackups() {
+  var list = document.getElementById('lpBackupList');
+  if (!list) return;
+  try {
+    var res  = await fetch('api/backup.php?action=list');
+    var data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      list.innerHTML = '<div style="color:#aaa;font-size:10px;">Keine Sicherungen vorhanden</div>';
+      return;
+    }
+    list.innerHTML = data.map(function(b) {
+      var kb = (b.size / 1024).toFixed(1);
+      return '<div style="border:1px solid #e4d4ec;border-radius:4px;padding:6px 8px;margin-bottom:5px;background:#fff;">' +
+        '<div style="font-size:10px;color:#642d7b;font-weight:bold;margin-bottom:2px;">' + b.label + '</div>' +
+        '<div style="font-size:9px;color:#bbb;margin-bottom:5px;">' + kb + ' KB</div>' +
+        '<button class="br" onclick="restoreBackup(\'' + b.file.replace(/'/g, '') + '\',\'' + b.label.replace(/'/g, '') + '\')" ' +
+        'style="width:100%;margin:0;padding:3px;font-size:10px;">&#x21BA; Wiederherstellen</button>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#e74c3c;font-size:10px;">Fehler beim Laden der Sicherungen</div>';
+  }
+}
+
+async function createBackup() {
+  var btn = document.getElementById('lpBackupBtn');
+  var msg = document.getElementById('lpBackupMsg');
+  if (btn) btn.disabled = true;
+  msg.style.color   = '#642d7b';
+  msg.textContent   = 'Sicherung wird erstellt…';
+  try {
+    var res  = await fetch('api/backup.php?action=create', { method: 'POST' });
+    var data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ ' + (data.label || 'Gesichert');
+      await loadBackups();
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler beim Sichern';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Server nicht erreichbar';
+  }
+  if (btn) btn.disabled = false;
+}
+
+async function restoreBackup(file, label) {
+  if (!confirm('Datenbestand wiederherstellen?\n\n' + label + '\n\nAlle aktuellen Daten werden durch diese Sicherung ersetzt. Fortfahren?')) return;
+  var msg = document.getElementById('lpBackupMsg');
+  msg.style.color = '#642d7b';
+  msg.textContent = 'Wiederherstellung läuft…';
+  try {
+    var fd = new FormData();
+    fd.append('file', file);
+    var res  = await fetch('api/backup.php?action=restore', { method: 'POST', body: fd });
+    var data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ Datenbestand wiederhergestellt';
+      await loadBackups();
+      await loadContacts();
+      if (typeof loadPlzStatus === 'function') loadPlzStatus();
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler bei der Wiederherstellung';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Server nicht erreichbar';
+  }
 }
 
 // ─── Init ─────────────────────────────────────────────────────────

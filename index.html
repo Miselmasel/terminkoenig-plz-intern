@@ -154,8 +154,18 @@
     </div>
   </div>
 
+  <!-- Datensicherung (nur Admin, wird per JS eingeblendet) -->
+  <div class="s" id="lpBackupMgmt" style="display:none;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">DATENSICHERUNG</h3>
+      <button class="bb" onclick="createBackup()" id="lpBackupBtn" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Jetzt sichern</button>
+    </div>
+    <div id="lpBackupMsg" style="font-size:10px;min-height:12px;color:#642d7b;margin-bottom:6px;"></div>
+    <div id="lpBackupList" style="font-size:11px;"></div>
+  </div>
+
   <div style="padding:8px 10px;border-top:2px solid #e4d4ec;background:#faf7fc;font-size:10px;color:#aaa;text-align:center;margin-top:auto;">
-    Terminkönig Intern © 2025
+    Terminkönig Intern © 2026 &nbsp;·&nbsp; v0.09 beta
   </div>
 </div>
 
@@ -477,6 +487,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=2"></script>
-<script src="admin.js?v=9"></script>
+<script src="admin.js?v=10"></script>
 </body>
 </html>
