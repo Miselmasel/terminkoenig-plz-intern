@@ -29,7 +29,7 @@ if ($method === 'GET') {
          FROM contacts c
          LEFT JOIN plz_assignments p ON p.contact_id = c.id
          GROUP BY c.id
-         ORDER BY c.suchbegriff'
+         ORDER BY c.gesehen ASC, c.suchbegriff'
     );
     jsonOut($stmt->fetchAll());
 }
@@ -82,6 +82,15 @@ if ($method === 'PUT' && $id) {
         $d['notizen'] ?? '',
         $id,
     ]);
+    jsonOut(['ok' => true]);
+}
+
+if ($method === 'PATCH' && $id) {
+    $d = json_decode(file_get_contents('php://input'), true);
+    if (isset($d['gesehen'])) {
+        getDB()->prepare('UPDATE contacts SET gesehen = ? WHERE id = ?')
+               ->execute([intval($d['gesehen']), $id]);
+    }
     jsonOut(['ok' => true]);
 }
 

@@ -20,88 +20,8 @@
     <div style="font-size:11px;font-weight:bold;margin-top:4px;">VERWALTUNG</div>
   </h2>
 
-  <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
-    <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
-    <div style="display:flex;gap:4px;">
-      <button class="bk" onclick="openChangePassword()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Passwort ändern">🔑</button>
-      <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
-    </div>
-  </div>
-
-  <!-- Gebietsstatus -->
-  <div class="s">
-    <div class="tr" style="margin-bottom:6px;">
-      <h3 style="margin:0;">GEBIETSSTATUS</h3>
-      <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Wünsche: aus</button>
-    </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;">
-      <div class="lr"><span class="ld" style="background:#c0392b"></span> Belegt</div>
-      <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
-      <div class="lr"><span class="ld" style="background:#8e44ad;opacity:.5;"></span> Wunsch</div>
-    </div>
-    <div id="lpStatusCount" style="font-size:11px;color:#642d7b;font-weight:bold;margin-top:4px;min-height:14px;"></div>
-  </div>
-
-  <!-- PLZ Zuweisen (erscheint bei Klick auf Karte) -->
-  <div class="s" id="lpAssignPanel" style="display:none;background:#faf7fc;">
-    <div class="tr" style="margin-bottom:6px;">
-      <h3 style="margin:0;">PLZ ZUWEISEN</h3>
-      <button onclick="closeAssignPanel()" style="width:auto;margin:0;padding:2px 7px;background:#ccc;color:#333;border:none;border-radius:3px;cursor:pointer;font-size:12px;">✕</button>
-    </div>
-    <div style="font-size:11px;color:#555;margin-bottom:6px;">
-      Gebiet: <strong id="lpAssignPlz"></strong>
-    </div>
-    <select id="lpAssignContact" style="margin-bottom:4px;">
-      <option value="">— Kontakt wählen —</option>
-    </select>
-    <!-- Vorhandene Zuweisungen für diese PLZ -->
-    <div id="lpAssignExisting" style="display:none;background:#f8f4fc;border-radius:3px;padding:4px 6px;margin-bottom:6px;font-size:11px;"></div>
-    <select id="lpAssignStatus" style="margin-bottom:4px;">
-      <option value="wunsch">Wunsch</option>
-      <option value="reserviert">Reserviert</option>
-      <option value="belegt">Belegt</option>
-      <option value="frei">Frei / Freigeben</option>
-    </select>
-    <input type="text" id="lpAssignNote" placeholder="Notiz (optional)" style="margin-bottom:6px;">
-    <button class="bb" onclick="saveAssignment()" style="margin:0;">Speichern</button>
-    <div id="lpAssignMsg" style="font-size:11px;margin-top:4px;min-height:14px;"></div>
-  </div>
-
-  <!-- Auswahl als Wunsch markieren -->
-  <div class="s">
-    <div class="tr" style="margin-bottom:6px;">
-      <h3 style="margin:0;">ZUWEISEN</h3>
-      <button class="bk" onclick="openImportModal()" style="width:auto;margin:0;padding:3px 6px;font-size:11px;" title="PLZ aus CSV importieren">⬆ CSV</button>
-    </div>
-    <div style="position:relative;margin-bottom:4px;">
-      <input type="text" id="lpWunschSearch" placeholder="Kontakt suchen…" oninput="filterWunschSearch(this)" onfocus="filterWunschSearch(this)" autocomplete="off" style="margin:0;width:100%;box-sizing:border-box;">
-      <input type="hidden" id="lpWunschContactId">
-      <div id="lpWunschDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #c8a8dc;border-top:none;border-radius:0 0 4px 4px;max-height:150px;overflow-y:auto;z-index:200;box-shadow:0 4px 8px rgba(0,0,0,.15);"></div>
-    </div>
-    <select id="lpWunschStatus" style="margin-bottom:4px;">
-      <option value="wunsch">Wunsch</option>
-      <option value="reserviert">Reserviert</option>
-      <option value="belegt">Belegt</option>
-    </select>
-    <button id="lpWunschBtn" class="bb" onclick="assignWunsch()" style="margin-bottom:4px;">Auswahl zuweisen</button>
-    <div id="lpWunschMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
-    <div style="font-size:10px;color:#aaa;margin-top:2px;"><span id="lpSelCount">0</span> Gebiete auf Karte ausgewählt</div>
-  </div>
-
-  <!-- Kunden importieren (Terminkönig XLS-Format) -->
-  <div class="s">
-    <div class="tr" style="margin-bottom:4px;">
-      <h3 style="margin:0;">KUNDEN IMPORTIEREN</h3>
-    </div>
-    <div style="font-size:10px;color:#888;margin-bottom:6px;">Terminkönig-Export (XLS/XLSX) → Kunden + PLZ anlegen</div>
-    <input type="file" id="kiFile" accept=".xls,.xlsx" onchange="kiPreview()" style="font-size:11px;width:100%;box-sizing:border-box;margin-bottom:4px;">
-    <div id="kiPreviewBox" style="display:none;background:#f8f4fc;border:1px solid #c8a8dc;border-radius:3px;padding:5px 7px;font-size:11px;margin-bottom:6px;line-height:1.6;"></div>
-    <button class="bb" id="kiImportBtn" onclick="kiImport()" style="display:none;margin:0;font-size:11px;">Kunden anlegen &amp; importieren</button>
-    <div id="kiMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
-  </div>
-
   <!-- Kontakte -->
-  <div class="s" style="flex:1;">
+  <div class="s" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;">
     <div class="tr" style="margin-bottom:6px;">
       <h3 style="margin:0;">KONTAKTE</h3>
       <div style="display:flex;gap:4px;">
@@ -134,10 +54,132 @@
     <div id="lpLocalHint" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:3px;padding:5px 8px;font-size:10px;color:#856404;margin-bottom:6px;">
       ⚠ Lokaler Modus – Daten nur im Browser gespeichert
     </div>
-    <div id="lpContactList" style="font-size:12px;"></div>
+    <div id="lpContactList" style="font-size:12px;flex:1;overflow-y:auto;min-height:0;"></div>
   </div>
 
-  <!-- Benutzerverwaltung (nur Admin, wird per JS eingeblendet) -->
+  <!-- Kunden importieren (Terminkönig XLS-Format) -->
+  <div class="s">
+    <div class="tr" style="margin-bottom:4px;">
+      <h3 style="margin:0;">KUNDEN IMPORTIEREN</h3>
+    </div>
+    <div style="font-size:10px;color:#888;margin-bottom:6px;">Terminkönig-Export (XLS/XLSX) → Kunden + PLZ anlegen</div>
+    <input type="file" id="kiFile" accept=".xls,.xlsx" onchange="kiPreview()" style="font-size:11px;width:100%;box-sizing:border-box;margin-bottom:4px;">
+    <div id="kiPreviewBox" style="display:none;background:#f8f4fc;border:1px solid #c8a8dc;border-radius:3px;padding:5px 7px;font-size:11px;margin-bottom:6px;line-height:1.6;"></div>
+    <button class="bb" id="kiImportBtn" onclick="kiImport()" style="display:none;margin:0;font-size:11px;">Kunden anlegen &amp; importieren</button>
+    <div id="kiMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
+  </div>
+
+  <!-- PLZ-Import (nur Admin, wird per JS eingeblendet) -->
+  <div class="s" id="lpPlzImport" style="display:none;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">PLZ-IMPORT</h3>
+    </div>
+    <div style="font-size:10px;color:#888;margin-bottom:6px;">JSON aus Google Sheets exportJson()</div>
+    <label for="lpImportFile" style="font-size:11px;display:block;margin-bottom:3px;">Datei wählen:</label>
+    <input type="file" id="lpImportFile" accept=".json" style="font-size:11px;margin-bottom:6px;width:100%;box-sizing:border-box;">
+    <button class="bb" onclick="startPlzImport()" id="lpImportBtn" style="margin-bottom:4px;">Import starten</button>
+    <div id="lpImportMsg" style="font-size:10px;min-height:12px;color:#642d7b;margin-bottom:4px;white-space:pre-wrap;"></div>
+    <div id="lpImportResult" style="font-size:11px;"></div>
+  </div>
+
+  <!-- Datensicherung (nur Admin, wird per JS eingeblendet) -->
+  <div class="s" id="lpBackupMgmt" style="display:none;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">DATENSICHERUNG</h3>
+      <button class="bb" onclick="createBackup()" id="lpBackupBtn" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Jetzt sichern</button>
+    </div>
+    <div id="lpBackupMsg" style="font-size:10px;min-height:12px;color:#642d7b;margin-bottom:6px;"></div>
+    <div id="lpBackupList" style="font-size:11px;"></div>
+  </div>
+
+  <div style="padding:8px 10px;border-top:2px solid #e4d4ec;background:#faf7fc;font-size:10px;color:#aaa;text-align:center;margin-top:auto;">
+    Terminkönig Intern © 2026 &nbsp;·&nbsp; v0.09 beta
+  </div>
+</div>
+
+<!-- Toggle-Button rechtes Panel -->
+<button id="sbToggleBtn" class="pnl-toggle sb-side" onclick="toggleSB()">▶</button>
+
+<div id="map"></div>
+
+<!-- Rechtes Panel -->
+<div id="sb">
+  <h2>
+    <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:26px;display:block;margin:0 auto;">
+    <div style="font-size:12px;font-weight:bold;margin-top:4px;">PLZ-Karte</div>
+  </h2>
+
+  <!-- Login-Info -->
+  <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
+    <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
+    <div style="display:flex;gap:4px;">
+      <button class="bk" onclick="openChangePassword()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Passwort ändern">🔑</button>
+      <button class="bk" id="lpThemeBtn" onclick="toggleTheme()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Dark Mode">🌙</button>
+      <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
+    </div>
+  </div>
+
+  <!-- Gebietsstatus -->
+  <div class="s">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">GEBIETSSTATUS</h3>
+      <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Wünsche: aus</button>
+    </div>
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
+      <div class="lr"><span class="ld" style="background:#c0392b"></span> Belegt</div>
+      <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
+      <div class="lr"><span class="ld" style="background:#c8a200;opacity:.6;"></span> Wunsch</div>
+    </div>
+    <div id="lpStatusCount" style="font-size:11px;color:#642d7b;font-weight:bold;margin-top:4px;min-height:14px;"></div>
+  </div>
+
+  <!-- PLZ Zuweisen (erscheint bei Klick auf Karte) -->
+  <div class="s" id="lpAssignPanel" style="display:none;background:#faf7fc;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">PLZ ZUWEISEN</h3>
+      <button onclick="closeAssignPanel()" style="width:auto;margin:0;padding:2px 7px;background:#ccc;color:#333;border:none;border-radius:3px;cursor:pointer;font-size:12px;">✕</button>
+    </div>
+    <div style="font-size:11px;color:#555;margin-bottom:6px;">
+      Gebiet: <strong id="lpAssignPlz"></strong>
+    </div>
+    <select id="lpAssignContact" style="margin-bottom:4px;">
+      <option value="">— Kontakt wählen —</option>
+    </select>
+    <!-- Vorhandene Zuweisungen für diese PLZ -->
+    <div id="lpAssignExisting" style="display:none;background:#f8f4fc;border-radius:3px;padding:4px 6px;margin-bottom:6px;font-size:11px;"></div>
+    <select id="lpAssignStatus" style="margin-bottom:4px;">
+      <option value="wunsch">Wunsch</option>
+      <option value="reserviert">Reserviert</option>
+      <option value="belegt">Belegt</option>
+      <option value="frei">Frei / Freigeben</option>
+    </select>
+    <input type="text" id="lpAssignNote" placeholder="Notiz (optional)" style="margin-bottom:6px;">
+    <button class="bb" onclick="saveAssignment()" style="margin:0;">Speichern</button>
+    <div id="lpAssignMsg" style="font-size:11px;margin-top:4px;min-height:14px;"></div>
+  </div>
+
+  <!-- Zuweisen -->
+  <div class="s">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">ZUWEISEN</h3>
+      <button class="bk" onclick="openImportModal()" style="width:auto;margin:0;padding:3px 6px;font-size:11px;" title="PLZ aus CSV importieren">⬆ CSV</button>
+    </div>
+    <div style="position:relative;margin-bottom:4px;">
+      <input type="text" id="lpWunschSearch" placeholder="Kontakt suchen…" oninput="filterWunschSearch(this)" onfocus="filterWunschSearch(this)" autocomplete="off" style="margin:0;width:100%;box-sizing:border-box;">
+      <input type="hidden" id="lpWunschContactId">
+      <div id="lpWunschDropdown" style="display:none;position:absolute;top:100%;left:0;right:0;background:#fff;border:1px solid #c8a8dc;border-top:none;border-radius:0 0 4px 4px;max-height:150px;overflow-y:auto;z-index:200;box-shadow:0 4px 8px rgba(0,0,0,.15);"></div>
+    </div>
+    <select id="lpWunschStatus" style="margin-bottom:4px;">
+      <option value="wunsch">Wunsch</option>
+      <option value="reserviert">Reserviert</option>
+      <option value="belegt">Belegt</option>
+    </select>
+    <button id="lpWunschBtn" class="bb" onclick="assignWunsch()" style="margin-bottom:4px;">Auswahl zuweisen</button>
+    <div id="lpWunschMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
+    <div style="font-size:10px;color:#aaa;margin-top:2px;"><span id="lpSelCount">0</span> Gebiete auf Karte ausgewählt</div>
+  </div>
+
+  <!-- Benutzerverwaltung (nur Admin) -->
   <div class="s" id="lpUserMgmt" style="display:none;">
     <div class="tr" style="margin-bottom:6px;">
       <h3 style="margin:0;">BENUTZER</h3>
@@ -153,23 +195,6 @@
       <div id="lpInviteMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
     </div>
   </div>
-
-  <div style="padding:8px 10px;border-top:2px solid #e4d4ec;background:#faf7fc;font-size:10px;color:#aaa;text-align:center;margin-top:auto;">
-    Terminkönig Intern © 2025
-  </div>
-</div>
-
-<!-- Toggle-Button rechtes Panel -->
-<button id="sbToggleBtn" class="pnl-toggle sb-side" onclick="toggleSB()">▶</button>
-
-<div id="map"></div>
-
-<!-- Rechtes Panel (unverändert) -->
-<div id="sb">
-  <h2>
-    <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:26px;display:block;margin:0 auto;">
-    <div style="font-size:12px;font-weight:bold;margin-top:4px;">PLZ-Karte</div>
-  </h2>
 
   <div class="s">
     <div class="tr">
@@ -265,7 +290,7 @@
     <div id="fmStatus" style="font-size:11px;margin-top:4px;min-height:16px;"></div>
   </div>
 
-  <div class="s">
+  <div class="s" style="display:none;">
     <h3>FEIERTAGE</h3>
     <div id="cal"></div>
   </div>
@@ -477,6 +502,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=2"></script>
-<script src="admin.js?v=9"></script>
+<script src="admin.js?v=12"></script>
 </body>
 </html>

@@ -10,7 +10,9 @@ require_once __DIR__ . '/db.php';
 // CORS – nur von der öffentlichen Terminkönig-Karte erlauben
 $allowedOrigins = [
     'https://terminkoenig.plz-vertriebsplaner.de',
+    'http://terminkoenig.plz-vertriebsplaner.de',
     'https://www.terminkoenig.plz-vertriebsplaner.de',
+    'http://www.terminkoenig.plz-vertriebsplaner.de',
     'https://terminkoenig-plz-suche.vercel.app',
 ];
 $origin = $_SERVER['HTTP_ORIGIN'] ?? '';
@@ -52,14 +54,13 @@ if ($type === 'interessent') {
     if ($existing) {
         $contactId = $existing['id'];
         $created   = false;
-        // Neue Anfrage als Notiz anhängen
         $anfrageNotiz = date('d.m.Y') . ' – Neue Anfrage von öffentlicher Karte'
             . ($email   ? "\nE-Mail: $email"   : '')
             . ($telefon ? "\nTel: $telefon"     : '');
         $db->prepare("UPDATE contacts SET notizen = CONCAT(IFNULL(notizen,''), CASE WHEN notizen IS NULL OR notizen = '' THEN '' ELSE '\n---\n' END, ?) WHERE id = ?")
            ->execute([$anfrageNotiz, $contactId]);
     } else {
-        $db->prepare('INSERT INTO contacts (suchbegriff, kontakt_typ, typ, notizen) VALUES (?,?,?,?)')
+        $db->prepare('INSERT INTO contacts (suchbegriff, kontakt_typ, typ, notizen, gesehen) VALUES (?,?,?,?,0)')
            ->execute([$suchbegriff, 'interessent', 'bbm', $notizen]);
         $contactId = $db->lastInsertId();
         $created   = true;
@@ -83,9 +84,16 @@ if ($type === 'interessent') {
         $db->prepare("UPDATE contacts SET notizen = CONCAT(IFNULL(notizen,''), CASE WHEN notizen IS NULL OR notizen = '' THEN '' ELSE '\n---\n' END, ?) WHERE id = ?")
            ->execute([$anfrageNotiz, $contactId]);
     } else {
-        $suchbegriff = '_Kd_' . $kdnr;
-        $db->prepare('INSERT INTO contacts (suchbegriff, kundennummer, vertragsnummer, kontakt_typ, typ) VALUES (?,?,?,?,?)')
-           ->execute([$suchbegriff, $kdnr, $vtrnr, 'kunde', 'bbm']);
+        $kVorname  = trim($sender['vorname']  ?? '');
+        $kNachname = trim($sender['nachname'] ?? '');
+        $suchbegriff = ($kNachname && $kVorname) ? ($kNachname . '_' . $kVorname) : ('_Kd_' . $kdnr);
+        $kNotizen = implode("\n", array_filter([
+            ($kVorname || $kNachname) ? trim("$kVorname $kNachname") : '',
+            "Kundennummer: $kdnr",
+            $vtrnr ? "Vertragsnummer: $vtrnr" : '',
+        ]));
+        $db->prepare('INSERT INTO contacts (suchbegriff, kundennummer, vertragsnummer, kontakt_typ, typ, notizen, gesehen) VALUES (?,?,?,?,?,?,0)')
+           ->execute([$suchbegriff, $kdnr, $vtrnr, 'kunde', 'bbm', $kNotizen]);
         $contactId = $db->lastInsertId();
         $created   = true;
     }
@@ -95,8 +103,8 @@ if ($type === 'interessent') {
 $assigned = 0;
 if (!empty($plzList)) {
     $stmt = $db->prepare(
-        'INSERT INTO plz_assignments (plz3, contact_id, status, notiz, geaendert_von)
-         VALUES (?, ?, \'wunsch\', \'\', \'öffentliche Karte\')
+        'INSERT INTO plz_assignments (plz3, contact_id, status, notiz)
+         VALUES (?, ?, \'wunsch\', \'\')
          ON DUPLICATE KEY UPDATE
            status       = IF(status = \'wunsch\', \'wunsch\', status),
            geaendert_am = NOW()'

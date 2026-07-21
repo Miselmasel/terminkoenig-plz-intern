@@ -16,6 +16,24 @@ function saveLocalContacts() {
   localStorage.setItem('tk_next_id',  String(localNextId));
 }
 
+// ─── Dark Mode ────────────────────────────────────────────────────
+function toggleTheme() {
+  var isDark = document.body.getAttribute('data-theme') === 'dark';
+  var next   = isDark ? 'light' : 'dark';
+  document.body.setAttribute('data-theme', next);
+  localStorage.setItem('theme', next);
+  var btn = document.getElementById('lpThemeBtn');
+  if (btn) btn.textContent = next === 'dark' ? '☀️' : '🌙';
+}
+(function() {
+  var saved = localStorage.getItem('theme') || 'light';
+  document.body.setAttribute('data-theme', saved);
+  document.addEventListener('DOMContentLoaded', function() {
+    var btn = document.getElementById('lpThemeBtn');
+    if (btn) btn.textContent = saved === 'dark' ? '☀️' : '🌙';
+  });
+})();
+
 // ─── Login ────────────────────────────────────────────────────────
 async function checkLogin() {
   try {
@@ -28,6 +46,10 @@ async function checkLogin() {
     if (data.role === 'admin') {
       var um = document.getElementById('lpUserMgmt');
       if (um) { um.style.display = ''; loadUsers(); }
+      var bm = document.getElementById('lpBackupMgmt');
+      if (bm) { bm.style.display = ''; loadBackups(); }
+      var im = document.getElementById('lpPlzImport');
+      if (im) { im.style.display = ''; }
     }
   } catch(e) { location.href = 'login.html'; }
 }
@@ -178,9 +200,15 @@ window.onPlzAdminClick = function(plz3) {
         var ic    = icons[e.status]  || '·';
         var cl    = colors[e.status] || '#999';
         var datum = e.import_datum ? '<span style="color:#bbb;font-size:9px;margin-left:3px;">(' + esc(e.import_datum) + ')</span>' : '';
+        var freigBtn = e.status === 'belegt'
+          ? '<button onclick="freigeben(\'' + e.plz3 + '\',' + e.contact_id + ')" style="background:#27ae60;border:none;color:#fff;cursor:pointer;font-size:9px;padding:1px 5px;border-radius:2px;white-space:nowrap;" title="PLZ freigeben">Freigeben</button>'
+          : '';
         return '<div style="display:flex;align-items:center;justify-content:space-between;gap:4px;padding:2px 0;font-size:11px;">' +
           '<span><span style="color:' + cl + '">' + ic + '</span> ' + esc(e.suchbegriff || '—') + datum + '</span>' +
-          '<button onclick="deleteAssignment(\'' + e.plz3 + '\',' + e.contact_id + ')" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;padding:0 2px;" title="Entfernen">✕</button>' +
+          '<span style="display:flex;gap:3px;align-items:center;">' +
+            freigBtn +
+            '<button onclick="deleteAssignment(\'' + e.plz3 + '\',' + e.contact_id + ')" style="background:none;border:none;color:#e74c3c;cursor:pointer;font-size:11px;padding:0 2px;" title="Entfernen">✕</button>' +
+          '</span>' +
         '</div>';
       }).join('');
       existList.style.display = 'block';
@@ -287,6 +315,34 @@ async function deleteAssignment(plz3, contactId) {
     if (typeof refreshLayer === 'function') refreshLayer(plz3);
     if (selectedPlz3 === plz3) window.onPlzAdminClick(plz3);
   } catch(e) { console.warn('Löschen fehlgeschlagen:', e); }
+}
+
+async function deleteContact(id, name) {
+  if (!confirm('Kontakt "' + name + '" wirklich löschen?\n(Alle PLZ-Zuweisungen werden ebenfalls entfernt.)')) return;
+  try {
+    var res  = await fetch('api/contacts.php?id=' + id, { method: 'DELETE' });
+    var data = await res.json();
+    if (data.ok) {
+      await loadPlzStatus();
+      if (typeof refreshAll === 'function') refreshAll();
+      loadContacts();
+    } else {
+      alert(data.error || 'Löschen fehlgeschlagen.');
+    }
+  } catch(e) { console.warn('Kontakt löschen fehlgeschlagen:', e); }
+}
+
+async function freigeben(plz3, contactId) {
+  try {
+    await fetch('api/plz_status.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ plz3: plz3, status: 'frei', contact_id: contactId })
+    });
+    await loadPlzStatus();
+    if (typeof refreshLayer === 'function') refreshLayer(plz3);
+    if (selectedPlz3 === plz3) window.onPlzAdminClick(plz3);
+  } catch(e) { console.warn('Freigeben fehlgeschlagen:', e); }
 }
 
 // ─── Auswahl als Wunsch markieren (Multi-PLZ) ────────────────────
@@ -1086,6 +1142,10 @@ function renderContactList(contacts) {
         'style="flex-shrink:0;width:auto;background:#27ae60;color:#fff;border:none;border-radius:3px;' +
         'padding:2px 5px;font-size:10px;cursor:pointer;white-space:nowrap;line-height:1.5;">→ K</button>'
       : '';
+    var delContactBtn = window.currentUserRole === 'admin'
+      ? '<button onclick="event.stopPropagation();deleteContact(' + c.id + ',\'' + esc(c.suchbegriff || '') + '\')" title="Kontakt löschen" ' +
+        'style="flex-shrink:0;width:auto;background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;" >✕</button>'
+      : '';
     return '<div class="ct-item" onclick="selectContact(' + JSON.stringify(c.id) + ')">' +
       '<span style="flex-shrink:0;width:14px;height:20px;background:' + ktBg + ';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">' + ktLabel + '</span>' +
       '<span class="ct-badge" style="background:' + typColor + ';flex-shrink:0;width:28px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#fff;">' + typLabel + '</span>' +
@@ -1095,6 +1155,7 @@ function renderContactList(contacts) {
       '</div>' +
       '<span class="ct-plz-count">' + cnt + '</span>' +
       convertBtn +
+      delContactBtn +
     '</div>';
   }).join('');
 }
@@ -1442,6 +1503,143 @@ async function deleteDocument(id) {
     await fetch('api/documents.php?id=' + id, { method: 'DELETE' });
     if (currentContactId) await loadContactDocuments(currentContactId);
   } catch(e) { console.warn('Dokument löschen fehlgeschlagen:', e); }
+}
+
+// ─── Datensicherung ───────────────────────────────────────────────
+async function loadBackups() {
+  var list = document.getElementById('lpBackupList');
+  if (!list) return;
+  try {
+    var res  = await fetch('api/backup.php?action=list');
+    var data = await res.json();
+    if (!Array.isArray(data) || !data.length) {
+      list.innerHTML = '<div style="color:#aaa;font-size:10px;">Keine Sicherungen vorhanden</div>';
+      return;
+    }
+    list.innerHTML = data.map(function(b) {
+      var kb = (b.size / 1024).toFixed(1);
+      return '<div style="border:1px solid #e4d4ec;border-radius:4px;padding:6px 8px;margin-bottom:5px;background:#fff;">' +
+        '<div style="font-size:10px;color:#642d7b;font-weight:bold;margin-bottom:2px;">' + b.label + '</div>' +
+        '<div style="font-size:9px;color:#bbb;margin-bottom:5px;">' + kb + ' KB</div>' +
+        '<button class="br" onclick="restoreBackup(\'' + b.file.replace(/'/g, '') + '\',\'' + b.label.replace(/'/g, '') + '\')" ' +
+        'style="width:100%;margin:0;padding:3px;font-size:10px;">&#x21BA; Wiederherstellen</button>' +
+        '</div>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<div style="color:#e74c3c;font-size:10px;">Fehler beim Laden der Sicherungen</div>';
+  }
+}
+
+async function createBackup() {
+  var btn = document.getElementById('lpBackupBtn');
+  var msg = document.getElementById('lpBackupMsg');
+  if (btn) btn.disabled = true;
+  msg.style.color   = '#642d7b';
+  msg.textContent   = 'Sicherung wird erstellt…';
+  try {
+    var res  = await fetch('api/backup.php?action=create', { method: 'POST' });
+    var data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ ' + (data.label || 'Gesichert');
+      await loadBackups();
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler beim Sichern';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Server nicht erreichbar';
+  }
+  if (btn) btn.disabled = false;
+}
+
+async function restoreBackup(file, label) {
+  if (!confirm('Datenbestand wiederherstellen?\n\n' + label + '\n\nAlle aktuellen Daten werden durch diese Sicherung ersetzt. Fortfahren?')) return;
+  var msg = document.getElementById('lpBackupMsg');
+  msg.style.color = '#642d7b';
+  msg.textContent = 'Wiederherstellung läuft…';
+  try {
+    var fd = new FormData();
+    fd.append('file', file);
+    var res  = await fetch('api/backup.php?action=restore', { method: 'POST', body: fd });
+    var data = await res.json();
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ Datenbestand wiederhergestellt';
+      await loadBackups();
+      await loadContacts();
+      if (typeof loadPlzStatus === 'function') loadPlzStatus();
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler bei der Wiederherstellung';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Server nicht erreichbar';
+  }
+}
+
+// ─── PLZ-Import ───────────────────────────────────────────────────
+async function startPlzImport() {
+  var btn  = document.getElementById('lpImportBtn');
+  var msg  = document.getElementById('lpImportMsg');
+  var res  = document.getElementById('lpImportResult');
+  var file = document.getElementById('lpImportFile').files[0];
+
+  if (!file) { msg.style.color = '#e74c3c'; msg.textContent = 'Keine Datei gewählt.'; return; }
+
+  msg.style.color = '#642d7b';
+  msg.textContent = 'Datei wird gelesen…';
+  res.innerHTML   = '';
+  btn.disabled    = true;
+
+  var text;
+  try { text = await file.text(); }
+  catch(e) { msg.textContent = 'Fehler beim Lesen: ' + e.message; btn.disabled = false; return; }
+
+  var json;
+  try { json = JSON.parse(text); }
+  catch(e) { msg.style.color = '#e74c3c'; msg.textContent = 'Ungültiges JSON: ' + e.message; btn.disabled = false; return; }
+
+  if (!json.contacts || !json.assignments) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'JSON fehlt contacts oder assignments.';
+    btn.disabled = false;
+    return;
+  }
+
+  msg.textContent = 'Sende ' + json.contacts.length + ' Kontakte, ' + json.assignments.length + ' Zuweisungen…';
+
+  try {
+    var r    = await fetch('api/import-plz.php', { method: 'POST', headers: {'Content-Type':'application/json'}, body: text });
+    var data = await r.json();
+
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ Import abgeschlossen';
+      res.innerHTML =
+        '<div style="margin-top:4px;line-height:1.8;">' +
+        '<b>Kontakte neu:</b> '     + data.created_contacts    + '<br>' +
+        '<b>Kontakte vorhanden:</b> ' + data.existing_contacts  + '<br>' +
+        '<b>Zuweisungen neu:</b> '  + data.created_assignments + '<br>' +
+        '<b>Zuweisungen upd.:</b> ' + data.updated_assignments + '<br>' +
+        (data.errors && data.errors.length ?
+          '<span style="color:#e74c3c"><b>Fehler:</b> ' + data.errors.length + '<br>' +
+          data.errors.slice(0,5).map(function(e){return '• '+e;}).join('<br>') + '</span>' : '') +
+        '</div>';
+      await loadContacts();
+      if (typeof loadPlzStatus === 'function') loadPlzStatus();
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler beim Import';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Netzwerkfehler: ' + e.message;
+  }
+
+  btn.disabled = false;
 }
 
 // ─── Init ─────────────────────────────────────────────────────────
