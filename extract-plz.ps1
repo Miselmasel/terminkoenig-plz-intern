@@ -183,7 +183,7 @@ $result = [PSCustomObject]@{
     assignments = @($assignments)
 }
 
-$result | ConvertTo-Json -Depth 10 | Out-File $OutFile -Encoding UTF8NoBOM
+[System.IO.File]::WriteAllText($OutFile, ($result | ConvertTo-Json -Depth 10), [System.Text.UTF8Encoding]::new($false))
 Write-Host "`nFertig!" -ForegroundColor Green
 Write-Host "Kontakte   : $($contacts.Count)"
 Write-Host "Zuweisungen: $($assignments.Count)"
