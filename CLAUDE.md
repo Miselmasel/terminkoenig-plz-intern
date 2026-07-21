@@ -69,6 +69,22 @@ auf der Karte sichtbar machen.
 | api/plz_status.php    | POST    | ja       | PLZ-Status setzen           |
 | api/plz_status.php?plz3=X | DELETE | ja  | PLZ freigeben               |
 | api/users.php         | GET/POST/PUT/DELETE | admin | Benutzer verwalten |
+| api/backup.php?action=list    | GET  | admin    | Sicherungen auflisten       |
+| api/backup.php?action=create  | POST | admin/cron | Sicherung erstellen       |
+| api/backup.php?action=restore | POST | admin    | Sicherung wiederherstellen  |
+
+## Datensicherung
+- Sicherungen liegen in `backups/` (via `.htaccess` vor direktem Zugriff geschützt)
+- Format: JSON (Schema + Daten aller Tabellen), rollierende 4 Sicherungen
+- Dateiname: `backup_YYYYMMDD_HHMM_v0.09-beta.json`
+- Label im Admin: z.B. `0.09 beta - 21.07.2026 - 22:35h`
+- Wiederherstellung über Admin-Panel (DATENSICHERUNG-Sektion im linken Panel)
+
+### Cron-Job auf all-inkl (jeden Sonntag, 22:00 Uhr)
+1. all-inkl KAS → Cronjobs → Neuer Cronjob
+2. Zeitplan: `0 22 * * 0`
+3. URL: `https://verwaltung.terminkoenig.plz-vertriebsplaner.de/api/backup.php?action=create&cron_secret=DEIN_CRON_SECRET`
+4. `CRON_SECRET` in `api/config.php` und `api/config.example.php` eintragen
 
 ## Setup auf all-inkl (Checkliste)
 1. [x] Subdomain `verwaltung.terminkoenig.plz-vertriebsplaner.de` → /Kartenprojekt/verwaltung/
