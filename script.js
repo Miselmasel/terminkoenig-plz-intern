@@ -91,7 +91,7 @@ function ringCentroid(ring) {
 function styleFeature(feature) {
   var plz3 = feature.properties.plz;
   if (selHol[plz3]) {
-    return { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
+    return window.holidayMapStyle || { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
   }
   if (window.plzStatusData && window.plzStatusData[plz3]) {
     var entries = window.plzStatusData[plz3];

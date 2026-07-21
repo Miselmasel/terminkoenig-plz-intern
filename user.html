@@ -7,6 +7,17 @@
 <link rel="icon" type="image/png" href="favicon.png">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 <link rel="stylesheet" href="style.css?v=3">
+<style>
+  .cal-nav button { color: #1a6ca8; }
+  .cal-today { background: #90bde0 !important; font-weight: bold; color: #0d3f6a !important; }
+  .cal-grid td:not(.cal-fei):hover { background: #c8e0f0; }
+  .cal-fei { background: #2471a3 !important; color: #fff !important; }
+  .cal-fei:hover { background: #1a5276 !important; }
+  .cal-fei.cal-today { outline: 2px solid #0d3f6a; background: #1a5276 !important; }
+  body[data-theme="dark"] .cal-today { background: #1a4a7a !important; color: #b8d8f0 !important; }
+  body[data-theme="dark"] .cal-grid td:not(.cal-fei):hover { background: #1a3a5c; }
+  body[data-theme="dark"] .cal-fei { background: #1a5276 !important; }
+</style>
 </head>
 <body>
 
@@ -17,7 +28,7 @@
 <div id="lp">
   <h2>
     <img src="terminkoenig_logo.png" alt="Terminkönig" style="height:22px;display:block;margin:0 auto;">
-    <div style="font-size:11px;font-weight:bold;margin-top:4px;">VERWALTUNG</div>
+    <div style="font-size:11px;font-weight:bold;margin-top:4px;">USER-PANEL</div>
   </h2>
 
   <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
@@ -34,10 +45,10 @@
       <h3 style="margin:0;">GEBIETSSTATUS</h3>
       <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Wünsche: aus</button>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:3px 6px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;">
       <div class="lr"><span class="ld" style="background:#c0392b"></span> Belegt</div>
       <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
-      <div class="lr"><span class="ld" style="background:#8e44ad;opacity:.5;"></span> Wunsch</div>
+      <div class="lr"><span class="ld" style="background:#c8a200;opacity:.6;"></span> Wunsch</div>
     </div>
     <div id="lpStatusCount" style="font-size:11px;color:#642d7b;font-weight:bold;margin-top:4px;min-height:14px;"></div>
   </div>
@@ -100,7 +111,7 @@
   </div>
 
   <!-- Kontakte -->
-  <div class="s" style="flex:1;">
+  <div class="s" style="flex:1;overflow:hidden;display:flex;flex-direction:column;min-height:0;">
     <div class="tr" style="margin-bottom:6px;">
       <h3 style="margin:0;">KONTAKTE</h3>
       <div style="display:flex;gap:4px;">
@@ -133,7 +144,7 @@
     <div id="lpLocalHint" style="display:none;background:#fff3cd;border:1px solid #ffc107;border-radius:3px;padding:5px 8px;font-size:10px;color:#856404;margin-bottom:6px;">
       ⚠ Lokaler Modus – Daten nur im Browser gespeichert
     </div>
-    <div id="lpContactList" style="font-size:12px;"></div>
+    <div id="lpContactList" style="font-size:12px;flex:1;overflow-y:auto;min-height:0;"></div>
   </div>
 
   <!-- lpUserMgmt bleibt versteckt (kein Admin) -->
@@ -443,7 +454,8 @@
   </div>
 </div>
 
-<script src="script.js?v=2"></script>
+<script>window.holidayMapStyle = { fillColor: "#2471a3", fillOpacity: 0.55, color: "#1a5276", weight: 1.5 };</script>
+<script src="script.js?v=3"></script>
 <script src="admin.js?v=10"></script>
 <script>
 // User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet

@@ -974,7 +974,7 @@ function openQuickKunde() {
   document.getElementById('qkVorname').value     = '';
   document.getElementById('qkKundennummer').value = '';
   document.getElementById('qkMsg').textContent   = '';
-  f.style.display = '';
+  f.style.display = 'block';
   document.getElementById('qkNachname').focus();
 }
 
@@ -989,7 +989,7 @@ function openQuickInteressent() {
   document.getElementById('qiNachname').value = '';
   document.getElementById('qiVorname').value  = '';
   document.getElementById('qiMsg').textContent = '';
-  f.style.display = '';
+  f.style.display = 'block';
   document.getElementById('qiNachname').focus();
 }
 
