@@ -164,6 +164,19 @@
     <div id="lpBackupList" style="font-size:11px;"></div>
   </div>
 
+  <!-- PLZ-Import (nur Admin, wird per JS eingeblendet) -->
+  <div class="s" id="lpPlzImport" style="display:none;">
+    <div class="tr" style="margin-bottom:6px;">
+      <h3 style="margin:0;">PLZ-IMPORT</h3>
+    </div>
+    <div style="font-size:10px;color:#888;margin-bottom:6px;">JSON aus extract-plz.ps1</div>
+    <label for="lpImportFile" style="font-size:11px;display:block;margin-bottom:3px;">Datei wählen:</label>
+    <input type="file" id="lpImportFile" accept=".json" style="font-size:11px;margin-bottom:6px;width:100%;box-sizing:border-box;">
+    <button class="bb" onclick="startPlzImport()" id="lpImportBtn" style="margin-bottom:4px;">Import starten</button>
+    <div id="lpImportMsg" style="font-size:10px;min-height:12px;color:#642d7b;margin-bottom:4px;white-space:pre-wrap;"></div>
+    <div id="lpImportResult" style="font-size:11px;"></div>
+  </div>
+
   <div style="padding:8px 10px;border-top:2px solid #e4d4ec;background:#faf7fc;font-size:10px;color:#aaa;text-align:center;margin-top:auto;">
     Terminkönig Intern © 2026 &nbsp;·&nbsp; v0.09 beta
   </div>
@@ -487,6 +500,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=2"></script>
-<script src="admin.js?v=10"></script>
+<script src="admin.js?v=11"></script>
 </body>
 </html>

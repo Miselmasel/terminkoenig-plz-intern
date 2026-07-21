@@ -30,6 +30,8 @@ async function checkLogin() {
       if (um) { um.style.display = ''; loadUsers(); }
       var bm = document.getElementById('lpBackupMgmt');
       if (bm) { bm.style.display = ''; loadBackups(); }
+      var im = document.getElementById('lpPlzImport');
+      if (im) { im.style.display = ''; }
     }
   } catch(e) { location.href = 'login.html'; }
 }
@@ -1519,6 +1521,68 @@ async function restoreBackup(file, label) {
     msg.style.color = '#e74c3c';
     msg.textContent = 'Server nicht erreichbar';
   }
+}
+
+// ─── PLZ-Import ───────────────────────────────────────────────────
+async function startPlzImport() {
+  var btn  = document.getElementById('lpImportBtn');
+  var msg  = document.getElementById('lpImportMsg');
+  var res  = document.getElementById('lpImportResult');
+  var file = document.getElementById('lpImportFile').files[0];
+
+  if (!file) { msg.style.color = '#e74c3c'; msg.textContent = 'Keine Datei gewählt.'; return; }
+
+  msg.style.color = '#642d7b';
+  msg.textContent = 'Datei wird gelesen…';
+  res.innerHTML   = '';
+  btn.disabled    = true;
+
+  var text;
+  try { text = await file.text(); }
+  catch(e) { msg.textContent = 'Fehler beim Lesen: ' + e.message; btn.disabled = false; return; }
+
+  var json;
+  try { json = JSON.parse(text); }
+  catch(e) { msg.style.color = '#e74c3c'; msg.textContent = 'Ungültiges JSON: ' + e.message; btn.disabled = false; return; }
+
+  if (!json.contacts || !json.assignments) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'JSON fehlt contacts oder assignments.';
+    btn.disabled = false;
+    return;
+  }
+
+  msg.textContent = 'Sende ' + json.contacts.length + ' Kontakte, ' + json.assignments.length + ' Zuweisungen…';
+
+  try {
+    var r    = await fetch('api/import-plz.php', { method: 'POST', headers: {'Content-Type':'application/json'}, body: text });
+    var data = await r.json();
+
+    if (data.ok) {
+      msg.style.color = '#27ae60';
+      msg.textContent = '✓ Import abgeschlossen';
+      res.innerHTML =
+        '<div style="margin-top:4px;line-height:1.8;">' +
+        '<b>Kontakte neu:</b> '     + data.created_contacts    + '<br>' +
+        '<b>Kontakte vorhanden:</b> ' + data.existing_contacts  + '<br>' +
+        '<b>Zuweisungen neu:</b> '  + data.created_assignments + '<br>' +
+        '<b>Zuweisungen upd.:</b> ' + data.updated_assignments + '<br>' +
+        (data.errors && data.errors.length ?
+          '<span style="color:#e74c3c"><b>Fehler:</b> ' + data.errors.length + '<br>' +
+          data.errors.slice(0,5).map(function(e){return '• '+e;}).join('<br>') + '</span>' : '') +
+        '</div>';
+      await loadContacts();
+      if (typeof loadPlzStatus === 'function') loadPlzStatus();
+    } else {
+      msg.style.color = '#e74c3c';
+      msg.textContent = data.error || 'Fehler beim Import';
+    }
+  } catch(e) {
+    msg.style.color = '#e74c3c';
+    msg.textContent = 'Netzwerkfehler: ' + e.message;
+  }
+
+  btn.disabled = false;
 }
 
 // ─── Init ─────────────────────────────────────────────────────────
