@@ -34,6 +34,54 @@ function toggleTheme() {
   });
 })();
 
+// ─── Sheets-Sync ──────────────────────────────────────────────────
+async function loadSyncStatus() {
+  var el = document.getElementById('syncStatusText');
+  if (!el) return;
+  try {
+    var res  = await fetch('api/sheets_sync.php?action=status');
+    var data = await res.json();
+    if (data.status === 'ok') {
+      var d = data.updated_at ? new Date(data.updated_at).toLocaleString('de-DE', { day:'2-digit', month:'2-digit', year:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+      el.textContent = 'Letzte Sync: ' + d + (data.created ? ' (+' + data.created + ')' : '');
+      el.style.color = '#27ae60';
+    } else if (data.status === 'error') {
+      el.textContent = 'Fehler: ' + (data.details || '?');
+      el.style.color = '#e74c3c';
+    } else {
+      el.textContent = 'Noch nicht synchronisiert';
+      el.style.color = '#888';
+    }
+  } catch(e) {
+    el.textContent = 'Status nicht abrufbar';
+    el.style.color = '#888';
+  }
+}
+
+async function triggerManualSync() {
+  var btn = document.getElementById('syncBtn');
+  var el  = document.getElementById('syncStatusText');
+  if (btn) { btn.disabled = true; btn.textContent = '…'; }
+  if (el)  { el.textContent = 'Synchronisiere…'; el.style.color = '#e67e22'; }
+  try {
+    var res  = await fetch('api/sheets_sync.php', { method: 'POST' });
+    var data = await res.json();
+    if (data.ok) {
+      if (el) { el.textContent = '✓ Sync abgeschlossen (' + (data.created||0) + ' neu, ' + (data.updated||0) + ' aktualisiert)'; el.style.color = '#27ae60'; }
+      await loadPlzStatus();
+      if (typeof refreshAll === 'function') refreshAll();
+      await loadContacts();
+    } else {
+      if (el) { el.textContent = 'Fehler: ' + (data.error || '?'); el.style.color = '#e74c3c'; }
+    }
+  } catch(e) {
+    if (el) { el.textContent = 'Netzwerkfehler'; el.style.color = '#e74c3c'; }
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = '↻'; }
+    setTimeout(loadSyncStatus, 3000);
+  }
+}
+
 // ─── Login ────────────────────────────────────────────────────────
 async function checkLogin() {
   try {
@@ -139,7 +187,7 @@ async function loadPlzStatus() {
       window.plzStatusData[d.plz3].push(d);
     });
     updateStatusCount();
-    if (window.statusMode && typeof refreshAll === 'function') refreshAll();
+    if (typeof refreshAll === 'function') refreshAll();
   } catch(e) { console.warn('PLZ-Status nicht geladen:', e); }
 }
 
@@ -880,12 +928,15 @@ async function loadContacts() {
 }
 
 function populateAllContactDropdowns() {
+  var sorted = allContacts.slice().sort(function(a, b) {
+    return (a.suchbegriff || '').localeCompare(b.suchbegriff || '', 'de', {sensitivity: 'base'});
+  });
   ['lpAssignContact', 'importContact'].forEach(function(id) {
     var sel = document.getElementById(id);
     if (!sel) return;
     var cur = sel.value;
     sel.innerHTML = '<option value="">— Kontakt wählen —</option>';
-    allContacts.forEach(function(c) {
+    sorted.forEach(function(c) {
       var opt = document.createElement('option');
       opt.value = c.id;
       var label = c.suchbegriff || '—';
@@ -1119,6 +1170,47 @@ async function saveQuickKunde() {
   }
 }
 
+var TYPE_DEFS = {
+  'BSV':  { label:'BSV',  color:'#27ae60', tc:'#fff', premium:false },
+  'RS':   { label:'RS',   color:'#2980b9', tc:'#fff', premium:false },
+  'RSV':  { label:'RSV',  color:'#2980b9', tc:'#fff', premium:false },
+  'BHV':  { label:'BHV',  color:'#c9a800', tc:'#fff', premium:false },
+  'KFZ':  { label:'KFZ',  color:'#7f8c8d', tc:'#fff', premium:false },
+  'BKV':  { label:'bKV',  color:'#8e44ad', tc:'#fff', premium:true  },
+  'SACH': { label:'Sach', color:'#8e44ad', tc:'#fff', premium:true  },
+  'FLOT': { label:'Flot', color:'#8e44ad', tc:'#fff', premium:true  },
+  'SONST':{ label:'Sonst',color:'#8e44ad', tc:'#fff', premium:true  },
+};
+var BRANCH_DEFS = {
+  'BBM': { label:'BBM', color:'#1e8449', tc:'#fff' },
+  'LS':  { label:'LS',  color:'#e67e22', tc:'#fff' },
+  'RC':  { label:'RC',  color:'#2471a3', tc:'#fff' },
+  'BL':  { label:'BL',  color:'#c9a800', tc:'#fff' },
+};
+
+function parseKontaktBadges(c) {
+  var parts = ((c && c.suchbegriff) || '').split('_');
+  var typDef = null, branchDef = null, blWert = null;
+  parts.forEach(function(p) {
+    var pu = p.toUpperCase();
+    if (TYPE_DEFS[pu]) typDef = TYPE_DEFS[pu];
+    var blMatch = p.match(/^BL(\d+)$/i);
+    if (blMatch) {
+      branchDef = BRANCH_DEFS['BL'];
+      blWert = blMatch[1];
+    } else {
+      Object.keys(BRANCH_DEFS).forEach(function(b) {
+        if (pu === b || pu.startsWith(b + '(')) branchDef = BRANCH_DEFS[b];
+      });
+    }
+  });
+  if (!blWert && c && c.bl_wert && c.typ === 'bl') {
+    blWert = c.bl_wert;
+    if (!branchDef) branchDef = BRANCH_DEFS['BL'];
+  }
+  return { typDef: typDef, branchDef: branchDef, blWert: blWert };
+}
+
 function renderContactList(contacts) {
   var list = document.getElementById('lpContactList');
   if (!list) return;
@@ -1127,37 +1219,56 @@ function renderContactList(contacts) {
     return;
   }
   list.innerHTML = contacts.map(function(c) {
-    var typColor  = c.typ === 'bl' ? '#2980b9' : '#642d7b';
-    var typLabel  = c.typ === 'bl' ? 'BL' : 'BBM';
-    var isInt     = c.kontakt_typ === 'interessent';
-    var ktBg      = isInt ? '#e67e22' : '#27ae60';
-    var ktLabel   = isInt ? 'I' : 'K';
-    var sub = [];
-    if (c.kundennummer)   sub.push('Kd. ' + c.kundennummer);
-    if (c.vertragsnummer) sub.push('Vtr. ' + c.vertragsnummer);
-    if (c.typ === 'bl' && c.bl_wert) sub.push('BL ' + c.bl_wert);
+    var isInt   = c.kontakt_typ === 'interessent';
+    var ktBg    = isInt ? '#e67e22' : '#27ae60';
+    var ktLabel = isInt ? 'I' : 'K';
+    var isNeu   = c.gesehen == 0;
+    var parsed  = parseKontaktBadges(c);
+
+    var sbParts  = (c.suchbegriff || '').split('_');
+    var dispName = sbParts.slice(0, 2).join('_') || '—';
+
+    var typBadge = '';
+    if (parsed.typDef) {
+      typBadge = '<span style="background:' + parsed.typDef.color + ';color:' + parsed.typDef.tc + ';border-radius:3px;padding:1px 4px;font-size:8px;font-weight:bold;white-space:nowrap;">' + esc(parsed.typDef.label) + '</span>';
+    }
+    var branchBadge = '';
+    if (parsed.branchDef) {
+      var blLabel = parsed.branchDef.label + (parsed.blWert ? ' ' + parsed.blWert : '');
+      branchBadge = '<span style="background:' + parsed.branchDef.color + ';color:' + parsed.branchDef.tc + ';border-radius:3px;padding:1px 4px;font-size:8px;font-weight:bold;white-space:nowrap;">' + esc(blLabel) + '</span>';
+    }
+
     var cnt = c.plz_count || 0;
+
+    var editBtn = '<button onclick="event.stopPropagation();editContact(' + JSON.stringify(c.id) + ')" title="Bearbeiten" ' +
+      'style="flex-shrink:0;width:auto;margin-top:0;background:#6b42a0;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:bold;cursor:pointer;line-height:1.5;">B</button>';
     var convertBtn = isInt
       ? '<button onclick="event.stopPropagation();openConvertModal(' + c.id + ')" title="In Kunde umwandeln" ' +
-        'style="flex-shrink:0;width:auto;background:#27ae60;color:#fff;border:none;border-radius:3px;' +
-        'padding:2px 5px;font-size:10px;cursor:pointer;white-space:nowrap;line-height:1.5;">→ K</button>'
+        'style="flex-shrink:0;width:auto;margin-top:0;background:#27ae60;color:#fff;border:none;border-radius:3px;padding:2px 5px;font-size:10px;cursor:pointer;white-space:nowrap;line-height:1.5;">→ K</button>'
       : '';
     var delContactBtn = window.currentUserRole === 'admin'
       ? '<button onclick="event.stopPropagation();deleteContact(' + c.id + ',\'' + esc(c.suchbegriff || '') + '\')" title="Kontakt löschen" ' +
-        'style="flex-shrink:0;width:auto;background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;" >✕</button>'
+        'style="flex-shrink:0;width:auto;margin-top:0;background:none;border:none;color:#c0392b;cursor:pointer;font-size:13px;padding:0 2px;line-height:1;">✕</button>'
       : '';
-    return '<div class="ct-item" onclick="selectContact(' + JSON.stringify(c.id) + ')">' +
-      '<span style="flex-shrink:0;width:14px;height:20px;background:' + ktBg + ';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">' + ktLabel + '</span>' +
-      '<span class="ct-badge" style="background:' + typColor + ';flex-shrink:0;width:28px;height:20px;border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:bold;color:#fff;">' + typLabel + '</span>' +
+
+    return '<div class="ct-item" onclick="highlightContactPLZ(' + JSON.stringify(c.id) + ')"' +
+      (isNeu ? ' style="border-left:3px solid #e74c3c;"' : '') + '>' +
+      '<span style="flex-shrink:0;width:14px;height:36px;background:' + ktBg + ';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">' + ktLabel + '</span>' +
       '<div class="ct-info" style="flex:1;min-width:0;">' +
-        '<div class="ct-name">' + esc(c.suchbegriff || '—') + '</div>' +
-        (sub.length ? '<div class="ct-sub">' + esc(sub.join(' · ')) + '</div>' : '') +
+        '<div class="ct-name">' + esc(dispName) + (isNeu ? ' <span style="background:#e74c3c;color:#fff;border-radius:3px;padding:0 3px;font-size:8px;font-weight:bold;vertical-align:middle;">NEU</span>' : '') + '</div>' +
+        '<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap;">' + typBadge + branchBadge + '</div>' +
       '</div>' +
+      editBtn +
       '<span class="ct-plz-count">' + cnt + '</span>' +
       convertBtn +
       delContactBtn +
     '</div>';
   }).join('');
+}
+
+function editContact(id) {
+  var c = allContacts.find(function(x) { return x.id === id || String(x.id) === String(id); });
+  if (c) { highlightContactPLZ(id); openContactForm(c); }
 }
 
 function esc(s) {
@@ -1173,9 +1284,120 @@ function filterContacts() {
   }));
 }
 
+var _highlightedContactId = null;
+
+function highlightContactPLZ(contactId) {
+  if (String(_highlightedContactId) === String(contactId)) {
+    clearContactPLZ();
+    return;
+  }
+  _highlightedContactId = contactId;
+  selContact = {};
+  var data = window.plzStatusData || {};
+  Object.keys(data).forEach(function(plz3) {
+    var entries = data[plz3];
+    if (Array.isArray(entries) && entries.some(function(e) { return String(e.contact_id) === String(contactId); })) {
+      selContact[plz3] = true;
+    }
+  });
+  if (typeof refreshAll === 'function') refreshAll();
+}
+
+function clearContactPLZ() {
+  _highlightedContactId = null;
+  selContact = {};
+  if (typeof refreshAll === 'function') refreshAll();
+}
+
 function selectContact(id) {
-  var c = allContacts.find(function(x) { return x.id === id || String(x.id) === String(id); });
-  if (c) openContactForm(c);
+  editContact(id);
+}
+
+// ─── Duplikate erkennen & zusammenführen ────────────────────────
+function detectDuplicates() {
+  var groups = {};
+  (allContacts || []).forEach(function(c) {
+    var parts = (c.suchbegriff || '').split('_');
+    var key   = parts.slice(0, 2).join('_').toLowerCase();
+    if (!key) return;
+    if (!groups[key]) groups[key] = [];
+    groups[key].push(c);
+  });
+  var dupGroups = Object.values(groups).filter(function(g) { return g.length > 1; });
+
+  var modal = document.getElementById('mergeModal');
+  var list  = document.getElementById('mergeGroupsList');
+  var msg   = document.getElementById('mergeMsg');
+  if (!modal || !list) return;
+
+  msg.textContent = '';
+
+  if (dupGroups.length === 0) {
+    list.innerHTML = '<p style="color:#27ae60;font-size:12px;">Keine Duplikate gefunden.</p>';
+  } else {
+    list.innerHTML = dupGroups.map(function(g, gi) {
+      var rows = g.map(function(c, i) {
+        var parsed = parseKontaktBadges(c);
+        var typB   = parsed.typDef
+          ? '<span style="background:' + parsed.typDef.color + ';color:' + parsed.typDef.tc + ';border-radius:3px;padding:1px 4px;font-size:8px;font-weight:bold;">' + esc(parsed.typDef.label) + '</span>'
+          : '';
+        var brB = parsed.branchDef
+          ? '<span style="background:' + parsed.branchDef.color + ';color:' + parsed.branchDef.tc + ';border-radius:3px;padding:1px 4px;font-size:8px;font-weight:bold;">' + esc(parsed.branchDef.label + (parsed.blWert ? ' ' + parsed.blWert : '')) + '</span>'
+          : '';
+        var star = i === 0 ? ' <span style="color:#e67e22;font-size:9px;font-weight:bold;">(Haupt)</span>' : '';
+        return '<div style="display:flex;align-items:center;gap:6px;padding:3px 0;border-bottom:1px solid #eee;">' +
+          '<span style="flex:1;font-size:11px;">' + esc(c.suchbegriff || '—') + star + '</span>' +
+          '<span style="display:flex;gap:3px;">' + typB + brB + '</span>' +
+          '<span style="font-size:10px;color:#888;">' + (c.plz_count || 0) + ' PLZ</span>' +
+        '</div>';
+      }).join('');
+      var idStr = g.map(function(c) { return c.id; }).join(',');
+      return '<div style="margin-bottom:14px;border:1px solid #ddd;border-radius:4px;padding:10px;">' +
+        '<div style="font-size:11px;font-weight:bold;margin-bottom:6px;color:#642d7b;">' +
+          esc(g[0].suchbegriff.split('_').slice(0,2).join('_')) +
+        '</div>' +
+        rows +
+        '<button onclick="mergeGroup(\'' + idStr + '\',this)" ' +
+          'style="margin-top:8px;width:auto;background:#e67e22;color:#fff;border:none;border-radius:3px;padding:4px 12px;font-size:11px;cursor:pointer;">Zusammenführen</button>' +
+      '</div>';
+    }).join('');
+  }
+
+  modal.style.display = 'flex';
+}
+
+function closeMergeModal() {
+  var modal = document.getElementById('mergeModal');
+  if (modal) modal.style.display = 'none';
+}
+
+async function mergeGroup(idStr, btn) {
+  var ids = idStr.split(',').map(Number).filter(Boolean);
+  if (ids.length < 2) return;
+  var primaryId = ids[0];
+  var mergeIds  = ids.slice(1);
+  var msg = document.getElementById('mergeMsg');
+  if (btn) btn.disabled = true;
+  try {
+    var res  = await fetch('api/contacts.php?action=merge', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ primary_id: primaryId, merge_ids: mergeIds })
+    });
+    var data = await res.json();
+    if (data.ok) {
+      if (btn) btn.closest('div[style*="margin-bottom:14px"]').innerHTML =
+        '<p style="color:#27ae60;font-size:11px;margin:0;">✓ Zusammengeführt</p>';
+      await loadContacts();
+      if (msg) msg.textContent = 'Zusammengeführt.';
+    } else {
+      if (msg) msg.textContent = data.error || 'Fehler beim Zusammenführen.';
+      if (btn) btn.disabled = false;
+    }
+  } catch(e) {
+    if (msg) msg.textContent = 'Netzwerkfehler: ' + e.message;
+    if (btn) btn.disabled = false;
+  }
 }
 
 // ─── BL-Dropdown ─────────────────────────────────────────────────
@@ -1228,6 +1450,7 @@ function openContactForm(contact) {
 function closeContactForm() {
   document.getElementById('contactModal').style.display = 'none';
   currentContactId = null;
+  clearContactPLZ();
 }
 
 async function saveContact() {
@@ -1647,4 +1870,6 @@ document.addEventListener('DOMContentLoaded', function() {
   checkLogin();
   loadPlzStatus();
   loadContacts();
+  loadSyncStatus();
+  setInterval(loadSyncStatus, 3600000);
 });

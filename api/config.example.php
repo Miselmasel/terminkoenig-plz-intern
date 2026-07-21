@@ -16,3 +16,10 @@ define('APP_URL',   'https://verwaltung.terminkoenig.plz-vertriebsplaner.de');  
 
 // Cron-Secret für automatische Datensicherung (beliebige lange zufällige Zeichenkette)
 define('CRON_SECRET', 'HIER_CRON_SECRET_EINTRAGEN');
+
+// Google Sheets Sync
+// 1. Im Sheet: Erweiterungen → Apps Script → Code einfügen → Als Web-App deployen
+// 2. Web-App-URL + selbst gewählten API-Key hier eintragen
+define('SHEETS_SCRIPT_URL', 'https://script.google.com/macros/s/DEINE_SCRIPT_ID/exec');
+define('SHEETS_API_KEY',    'HIER_ZUFAELLIGEN_KEY_EINTRAGEN');
+// Cron auf all-inkl: 0 * * * *  →  URL: .../api/sheets_sync.php?cron_secret=CRON_SECRET

@@ -7,9 +7,32 @@ $method = $_SERVER['REQUEST_METHOD'];
 // POST /api/plz_status.php                 → PLZ-Status setzen – einzeln oder als Liste (Login)
 // DELETE /api/plz_status.php?plz3=X[&contact_id=Y] → PLZ-Eintrag löschen (Login)
 
+// Rücksynchronisation: Karte → Google Sheet
+function notifySheet($plz3, $suchbegriff, $status, $datum = null) {
+    $scriptUrl = defined('SHEETS_SCRIPT_URL') ? SHEETS_SCRIPT_URL : '';
+    $apiKey    = defined('SHEETS_API_KEY')    ? SHEETS_API_KEY    : '';
+    if (!$scriptUrl || !$plz3 || !$suchbegriff) return;
+    $payload = json_encode([
+        'key'    => $apiKey,
+        'plz3'   => $plz3,
+        'kunde'  => $suchbegriff,
+        'status' => $status,
+        'datum'  => $datum ?: date('d.m.Y')
+    ]);
+    $ctx = stream_context_create(['http' => [
+        'method'          => 'POST',
+        'header'          => "Content-Type: application/json\r\nContent-Length: " . strlen($payload),
+        'content'         => $payload,
+        'timeout'         => 15,
+        'follow_location' => true,
+        'ignore_errors'   => true
+    ]]);
+    @file_get_contents($scriptUrl, false, $ctx);
+}
+
 if ($method === 'GET') {
     $stmt = getDB()->query(
-        'SELECT p.plz3, p.status, p.contact_id, p.notiz, c.suchbegriff,
+        'SELECT p.plz3, p.status, p.contact_id, p.notiz, p.partial, c.suchbegriff, c.typ, c.bl_wert,
                 DATE_FORMAT(p.zugewiesen_am, \'%d.%m.%Y\') AS import_datum
          FROM plz_assignments p
          LEFT JOIN contacts c ON c.id = p.contact_id
@@ -65,6 +88,18 @@ if ($method === 'POST') {
         jsonOut(['error' => 'Datenbankfehler: ' . $e->getMessage()], 500);
     }
 
+    // Karte → Sheet: Eintrag im Google Sheet aktualisieren
+    if ($contactId && $status !== 'frei') {
+        $con = $db->prepare('SELECT suchbegriff FROM contacts WHERE id = ?');
+        $con->execute([$contactId]);
+        $row = $con->fetch();
+        if ($row) {
+            foreach ($plzList as $plz3) {
+                notifySheet($plz3, $row['suchbegriff'], $status);
+            }
+        }
+    }
+
     jsonOut(['ok' => true, 'count' => count($plzList)]);
 }
 
@@ -75,14 +110,25 @@ if ($method === 'DELETE') {
 
     if (!$plz3) jsonOut(['error' => 'PLZ fehlt'], 400);
 
+    $db = getDB();
+    $suchbegriff = null;
     if ($contactId) {
-        // Nur den Eintrag dieses Kontakts löschen
-        getDB()->prepare('DELETE FROM plz_assignments WHERE plz3 = ? AND contact_id = ?')
-               ->execute([$plz3, $contactId]);
+        // Suchbegriff vor dem Löschen ermitteln
+        $con = $db->prepare('SELECT suchbegriff FROM contacts WHERE id = ?');
+        $con->execute([$contactId]);
+        $row = $con->fetch();
+        $suchbegriff = $row ? $row['suchbegriff'] : null;
+        $db->prepare('DELETE FROM plz_assignments WHERE plz3 = ? AND contact_id = ?')
+           ->execute([$plz3, $contactId]);
     } else {
-        // Alle Einträge für diese PLZ löschen
-        getDB()->prepare('DELETE FROM plz_assignments WHERE plz3 = ?')->execute([$plz3]);
+        $db->prepare('DELETE FROM plz_assignments WHERE plz3 = ?')->execute([$plz3]);
     }
+
+    // Karte → Sheet: Farbe entfernen (= Wunsch)
+    if ($suchbegriff) {
+        notifySheet($plz3, $suchbegriff, 'wunsch');
+    }
+
     jsonOut(['ok' => true]);
 }
 

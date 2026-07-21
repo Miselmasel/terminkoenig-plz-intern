@@ -34,7 +34,7 @@ if ($method === 'GET') {
     jsonOut($stmt->fetchAll());
 }
 
-if ($method === 'POST') {
+if ($method === 'POST' && ($_GET['action'] ?? '') === '') {
     $d = json_decode(file_get_contents('php://input'), true);
     if (empty($d['suchbegriff'])) {
         jsonOut(['error' => 'Suchbegriff ist erforderlich'], 400);
@@ -97,6 +97,36 @@ if ($method === 'PATCH' && $id) {
 if ($method === 'DELETE' && $id) {
     requireAdmin();
     getDB()->prepare('DELETE FROM contacts WHERE id = ?')->execute([$id]);
+    jsonOut(['ok' => true]);
+}
+
+// POST /api/contacts.php?action=merge  → Duplikate zusammenführen
+if ($method === 'POST' && ($_GET['action'] ?? '') === 'merge') {
+    $d          = json_decode(file_get_contents('php://input'), true);
+    $primaryId  = intval($d['primary_id'] ?? 0);
+    $mergeIds   = array_filter(array_map('intval', $d['merge_ids'] ?? []));
+
+    if (!$primaryId || empty($mergeIds)) {
+        jsonOut(['error' => 'primary_id und merge_ids erforderlich'], 400);
+    }
+
+    $db = getDB();
+    $ph = implode(',', array_fill(0, count($mergeIds), '?'));
+
+    // Konflikte entfernen: Assignments aus merge-Kontakten die primary schon hat
+    $db->prepare("DELETE pa FROM plz_assignments pa
+                  JOIN plz_assignments pa2 ON pa.plz3 = pa2.plz3 AND pa2.contact_id = ?
+                  WHERE pa.contact_id IN ($ph)")
+       ->execute(array_merge([$primaryId], $mergeIds));
+
+    // Rest auf primary umschreiben
+    $db->prepare("UPDATE plz_assignments SET contact_id = ? WHERE contact_id IN ($ph)")
+       ->execute(array_merge([$primaryId], $mergeIds));
+
+    // Zusammengeführte Kontakte löschen
+    $db->prepare("DELETE FROM contacts WHERE id IN ($ph)")
+       ->execute($mergeIds);
+
     jsonOut(['ok' => true]);
 }
 

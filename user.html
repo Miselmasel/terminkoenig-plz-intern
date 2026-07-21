@@ -20,6 +20,19 @@
 </style>
 </head>
 <body>
+<!-- SVG-Muster für Schraffierung (BL < 50%) -->
+<svg id="svg-pattern-defs" style="position:absolute;width:0;height:0;overflow:hidden;" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <pattern id="hatch-bl-partial" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">
+      <rect width="8" height="8" fill="#f9e79f" fill-opacity="0.45"/>
+      <line x1="0" y1="0" x2="0" y2="8" stroke="#b7950b" stroke-width="2.5"/>
+    </pattern>
+    <pattern id="hatch-bbm-partial" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">
+      <rect width="10" height="10" fill="#a9dfbf" fill-opacity="0.45"/>
+      <line x1="0" y1="0" x2="0" y2="10" stroke="#27ae60" stroke-width="2.5"/>
+    </pattern>
+  </defs>
+</svg>
 
 <!-- Toggle-Button linkes Panel -->
 <button id="lpToggleBtn" class="pnl-toggle lp-side" onclick="toggleLP()">◀</button>
@@ -45,10 +58,18 @@
       <h3 style="margin:0;">GEBIETSSTATUS</h3>
       <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Wünsche: aus</button>
     </div>
-    <div style="display:flex;gap:10px;flex-wrap:wrap;">
-      <div class="lr"><span class="ld" style="background:#c0392b"></span> Belegt</div>
+    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+      <div class="lr"><span class="ld" style="background:#1e8449"></span> Belegt BBM</div>
+      <div class="lr"><span class="ld" style="background:#b7950b"></span> BL &gt;70%</div>
+      <div class="lr"><span class="ld" style="background:#d4ac0d"></span> BL 30–70%</div>
+      <div class="lr"><span class="ld" style="background:#f4d03f"></span> BL &lt;30%</div>
       <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
       <div class="lr"><span class="ld" style="background:#c8a200;opacity:.6;"></span> Wunsch</div>
+    </div>
+    <div style="display:flex;gap:6px;margin-top:5px;align-items:center;flex-wrap:wrap;">
+      <span style="font-size:10px;color:var(--clr-muted);">Layer:</span>
+      <button id="basisToggleBtn" onclick="toggleBasisLayer()" style="width:auto;margin:0;padding:2px 8px;font-size:10px;background:#c0392b;color:#fff;border:none;border-radius:3px;cursor:pointer;line-height:1.4;">Basis</button>
+      <button id="premiumToggleBtn" onclick="togglePremiumLayer()" style="width:auto;margin:0;padding:2px 8px;font-size:10px;background:#7d3c98;color:#fff;border:none;border-radius:3px;cursor:pointer;line-height:1.4;">Premium</button>
     </div>
     <div id="lpStatusCount" style="font-size:11px;color:#642d7b;font-weight:bold;margin-top:4px;min-height:14px;"></div>
   </div>

@@ -10,8 +10,21 @@ L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', 
 
 var sel = {};
 var selHol = {};
+var selContact = {};
 window.getAdminSel = function() { return sel; };
 var geoL = null;
+var geoLPremium = null;
+var geoLHatch = null;
+var svgHatchRenderer = L.svg({ padding: 0.5 });
+window.showBasis   = true;
+window.showPremium = true;
+
+var PREMIUM_MAP_KEYS = ['BKV','SACH','FLOT','SONST'];
+function isPremiumContact(suchbegriff) {
+  return (suchbegriff || '').split('_').some(function(p) {
+    return PREMIUM_MAP_KEYS.indexOf(p.toUpperCase()) >= 0;
+  });
+}
 var allLayers = {};
 var centroids = {};
 var labelGroup = L.layerGroup().addTo(map);
@@ -88,16 +101,44 @@ function ringCentroid(ring) {
   return L.latLng(cy, cx);
 }
 
+function styleFeaturePremium(feature) {
+  var plz3 = feature.properties.plz;
+  if (!window.showPremium) return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0 };
+  if (window.plzStatusData && window.plzStatusData[plz3]) {
+    var allE = window.plzStatusData[plz3];
+    var pe = Array.isArray(allE) ? allE.filter(function(e){ return isPremiumContact(e.suchbegriff); }) : [];
+    var sts = pe.map(function(e){ return e.status; });
+    if (sts.indexOf('belegt')     >= 0) return { fillColor: '#7d3c98', fillOpacity: 0.65, color: '#5b2c6f', weight: 2 };
+    if (sts.indexOf('reserviert') >= 0) return { fillColor: '#1a5276', fillOpacity: 0.55, color: '#154360', weight: 1.5 };
+    if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#5b2c6f', fillOpacity: 0.30, color: '#4a235a', weight: 1.0 };
+  }
+  return { fillColor: 'transparent', fillOpacity: 0, color: 'transparent', weight: 0 };
+}
+
 function styleFeature(feature) {
   var plz3 = feature.properties.plz;
+  if (selContact[plz3]) {
+    return { fillColor: "#17a589", fillOpacity: 0.60, color: "#117a65", weight: 2.5 };
+  }
   if (selHol[plz3]) {
     return window.holidayMapStyle || { fillColor: "#e74c3c", fillOpacity: 0.55, color: "#c0392b", weight: 1.5 };
   }
   if (window.plzStatusData && window.plzStatusData[plz3]) {
     var entries = window.plzStatusData[plz3];
-    var sts = Array.isArray(entries) ? entries.map(function(e){return e.status;}) : [entries.status];
-    // Belegt/Reserviert immer anzeigen; Wunsch nur wenn statusMode aktiv
-    if (sts.indexOf('belegt')     >= 0) return { fillColor: '#c0392b', fillOpacity: 0.65, color: '#922b21', weight: 2 };
+    var basisE = Array.isArray(entries) ? entries.filter(function(e){ return !isPremiumContact(e.suchbegriff); }) : [];
+    var sts = window.showBasis ? basisE.map(function(e){ return e.status; }) : [];
+    if (sts.indexOf('belegt') >= 0) {
+      var belegtE = basisE.filter(function(e){ return e.status === 'belegt'; });
+      var hasBBM  = belegtE.some(function(e){
+        var isBL = e.typ === 'bl' || !!e.bl_wert || /[_\s(]BL\d+/i.test(e.suchbegriff || '');
+        return !isBL;
+      });
+      if (hasBBM) return { fillColor: '#1e8449', fillOpacity: 0.70, color: '#145a32', weight: 2 };
+      var blTotal = belegtE.reduce(function(s,e){ return s + (parseInt(e.bl_wert)||0); }, 0);
+      if (blTotal >= 70) return { fillColor: '#b7950b', fillOpacity: 0.75, color: '#9a7d0a', weight: 2 };
+      if (blTotal >= 30) return { fillColor: '#d4ac0d', fillOpacity: 0.60, color: '#b7950b', weight: 1.5 };
+      return { fillColor: '#f4d03f', fillOpacity: 0.45, color: '#d4ac0d', weight: 1.5 };
+    }
     if (sts.indexOf('reserviert') >= 0) return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
     if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#c8a200', fillOpacity: 0.30, color: '#9a7800', weight: 1.0 };
   }
@@ -130,17 +171,25 @@ function onEachFeature(feature, layer) {
     if (b && b.est) txt += '<br><small>ca. ' + b.est.toLocaleString('de-DE') + ' Betriebe</small>';
     var entries = window.plzStatusData && window.plzStatusData[p];
     if (entries && entries.length) {
-      var belegtE     = null, reserviertE = null, wunschList = [];
+      var belegtList = [], reserviertE = null, wunschList = [];
       entries.forEach(function(e) {
-        if (e.status === 'belegt')     belegtE     = e;
+        if (e.status === 'belegt')          belegtList.push(e);
         else if (e.status === 'reserviert') reserviertE = e;
-        else if (e.status === 'wunsch') wunschList.push(e);
+        else if (e.status === 'wunsch')     wunschList.push(e);
       });
       txt += '<hr style="margin:3px 0;border:none;border-top:1px solid #ddd;">';
-      if (belegtE) {
-        var d = belegtE.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + belegtE.import_datum + ')</span>' : '';
-        txt += '<br><strong style="color:#c0392b;">Belegt durch:</strong> ' +
-               (belegtE.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;') + d;
+      if (belegtList.length) {
+        var hasBBM   = belegtList.some(function(e){ return e.typ === 'bbm'; });
+        var blTotal  = belegtList.reduce(function(s,e){ return s+(parseInt(e.bl_wert)||0); }, 0);
+        var col      = hasBBM ? '#1e8449' : '#b7950b';
+        var label    = hasBBM ? 'Belegt BBM' : 'Belegt BL (' + blTotal + '%)';
+        txt += '<br><strong style="color:' + col + ';">' + label + ':</strong> ';
+        txt += belegtList.map(function(e) {
+          var sb = (e.suchbegriff || '—').replace(/&/g,'&amp;').replace(/</g,'&lt;');
+          var pct = (e.typ === 'bl' && e.bl_wert) ? ' <span style="color:#888;font-size:9px;">' + e.bl_wert + '%</span>' : '';
+          var d   = e.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + e.import_datum + ')</span>' : '';
+          return sb + pct + d;
+        }).join(', ');
       }
       if (reserviertE) {
         var d = reserviertE.import_datum ? ' <span style="color:#bbb;font-size:9px;">(' + reserviertE.import_datum + ')</span>' : '';
@@ -251,11 +300,48 @@ function refreshLayer(plz3) {
   if (layer) layer.setStyle(styleFeature(layer.feature));
 }
 
+function styleHatch(feature) {
+  var plz3 = feature.properties.plz;
+  if (!window.showBasis || !window.plzStatusData || !window.plzStatusData[plz3])
+    return { fill: false, opacity: 0, weight: 0 };
+  var entries = window.plzStatusData[plz3];
+  var basisE = Array.isArray(entries) ? entries.filter(function(e){ return !isPremiumContact(e.suchbegriff); }) : [];
+  var belegtE = basisE.filter(function(e){ return e.status === 'belegt'; });
+  if (!belegtE.length) return { fill: false, opacity: 0, weight: 0 };
+  // Höchste Teilbelegungs-Stufe ermitteln (0=voll, 1-3=partiell)
+  var partialLvl = 0;
+  belegtE.forEach(function(e){ if ((e.partial || 0) > partialLvl) partialLvl = e.partial; });
+  var hasBBM = belegtE.some(function(e){
+    return !(e.typ === 'bl' || !!e.bl_wert || /[_\s(]BL\d+/i.test(e.suchbegriff || ''));
+  });
+  if (hasBBM) {
+    if (partialLvl > 0) return { fill: true, fillColor: 'url(#hatch-bbm-p' + partialLvl + ')', fillOpacity: 1, color: '#145a32', weight: 1.5, opacity: 0.8 };
+    return { fill: false, opacity: 0, weight: 0 };
+  }
+  var blTotal = belegtE.reduce(function(s,e){ return s + (parseInt(e.bl_wert)||0); }, 0);
+  if (blTotal <= 0) return { fill: false, opacity: 0, weight: 0 };
+  if (partialLvl > 0 || blTotal < 50) return { fill: true, fillColor: 'url(#hatch-bl-p' + (partialLvl || 1) + ')', fillOpacity: 1, color: '#b7950b', weight: 1.5, opacity: 0.8 };
+  return { fill: false, opacity: 0, weight: 0 };
+}
+
 function refreshAll() {
-  if (geoL)
-    geoL.setStyle(function (f) {
-      return styleFeature(f);
-    });
+  if (geoL) geoL.setStyle(function(f) { return styleFeature(f); });
+  if (geoLPremium) geoLPremium.setStyle(function(f) { return styleFeaturePremium(f); });
+  if (geoLHatch) geoLHatch.setStyle(function(f) { return styleHatch(f); });
+}
+
+function toggleBasisLayer() {
+  window.showBasis = !window.showBasis;
+  var btn = document.getElementById('basisToggleBtn');
+  if (btn) btn.style.opacity = window.showBasis ? '1' : '0.4';
+  refreshAll();
+}
+
+function togglePremiumLayer() {
+  window.showPremium = !window.showPremium;
+  var btn = document.getElementById('premiumToggleBtn');
+  if (btn) btn.style.opacity = window.showPremium ? '1' : '0.4';
+  refreshAll();
 }
 
 function togglePreisklassen() {
@@ -571,6 +657,49 @@ fetch(GEO_URL)
       onEachFeature: onEachFeature,
       renderer: canvasRenderer
     }).addTo(map);
+    geoLPremium = L.geoJSON(data, {
+      style: styleFeaturePremium,
+      interactive: false,
+      renderer: canvasRenderer
+    }).addTo(map);
+    geoLHatch = L.geoJSON(data, {
+      style: styleHatch,
+      interactive: false,
+      renderer: svgHatchRenderer
+    }).addTo(map);
+    // Pattern-Defs in den Leaflet-SVG injizieren (url(#id) funktioniert nur im selben <svg>)
+    var svgEl = svgHatchRenderer._container;
+    if (svgEl) {
+      var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+      defs.innerHTML =
+        // BBM-Schraffierung: 3 Stufen (1=<33%, 2=33-66%, 3=>66%)
+        '<pattern id="hatch-bbm-p1" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(45)">' +
+          '<rect width="16" height="16" fill="#c8f0d8" fill-opacity="0.30"/>' +
+          '<line x1="0" y1="0" x2="0" y2="16" stroke="#52be80" stroke-width="1.5"/>' +
+        '</pattern>' +
+        '<pattern id="hatch-bbm-p2" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">' +
+          '<rect width="10" height="10" fill="#a9dfbf" fill-opacity="0.45"/>' +
+          '<line x1="0" y1="0" x2="0" y2="10" stroke="#27ae60" stroke-width="2.5"/>' +
+        '</pattern>' +
+        '<pattern id="hatch-bbm-p3" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">' +
+          '<rect width="6" height="6" fill="#82c99a" fill-opacity="0.55"/>' +
+          '<line x1="0" y1="0" x2="0" y2="6" stroke="#1e8449" stroke-width="3"/>' +
+        '</pattern>' +
+        // BL-Schraffierung: 3 Stufen
+        '<pattern id="hatch-bl-p1" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(45)">' +
+          '<rect width="16" height="16" fill="#fef9e7" fill-opacity="0.30"/>' +
+          '<line x1="0" y1="0" x2="0" y2="16" stroke="#d4ac0d" stroke-width="1.5"/>' +
+        '</pattern>' +
+        '<pattern id="hatch-bl-p2" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">' +
+          '<rect width="8" height="8" fill="#f9e79f" fill-opacity="0.30"/>' +
+          '<line x1="0" y1="0" x2="0" y2="8" stroke="#b7950b" stroke-width="2"/>' +
+        '</pattern>' +
+        '<pattern id="hatch-bl-p3" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">' +
+          '<rect width="5" height="5" fill="#f0c640" fill-opacity="0.40"/>' +
+          '<line x1="0" y1="0" x2="0" y2="5" stroke="#9a7d0a" stroke-width="2.5"/>' +
+        '</pattern>';
+      svgEl.insertBefore(defs, svgEl.firstChild);
+    }
     updateSidebar();
     addLabels();
   })
