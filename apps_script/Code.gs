@@ -1,9 +1,24 @@
-// ===== Terminkönig PLZ-Karte – Google Apps Script (komplett) =====
-// Deployte Version, Stand 21.07.2026
+// ===== Terminkönig PLZ-Karte – Google Apps Script (Sammelsheet-Version) =====
+// Dieses Script liegt im zentralen Sammelsheet und liest aus 10 Bearbeitungs-Sheets.
 // Deployment: gleiche Deployment-ID beibehalten (Deployen → Verwalten → Stift → Neue Version)
 // URL in api/config.php als SHEETS_SCRIPT_URL hinterlegt
 
 var API_KEY = 'TK_Sync_2026';
+
+// ---- Bearbeitungs-Sheet IDs (aus Google-Sheets-URL: /spreadsheets/d/ID/edit) ----
+// Reihenfolge: PLZ 0xxxx → 9xxxx
+var SHEET_IDS = [
+  '1-ZzyIAdWiX0PjwK51IezZ_ma55dPN-yvylxMSOvxn6M',  // PLZ 0xxxx
+  '11hhy1uNkuZr2GXAP80Ef0CfD60r17qlElkLXL5XSOW0',  // PLZ 1xxxx
+  '1mZVdlJnccK5MgzozboxXBTumgvSSM14btIK0fJjRc4c',   // PLZ 2xxxx
+  '1XpsdjGr4SfeabKrrl0Kq9_Vk3F7LCw_Nz5prWihi3Sg',  // PLZ 3xxxx
+  '112xqijkxnaHaH6lTu7KHw2AzCcZZ4HJjbqKuDx5cd6g',  // PLZ 4xxxx
+  '181IFpd_tBPr22OVfsbKHZJUm8-1afMJAkYBtTKCn67o',   // PLZ 5xxxx
+  '1rVhKN_Kg7gQOExy8PAGgi3TOTzpoq4guF5fUA5ADqiM',   // PLZ 6xxxx
+  '1UFFJf9-TxZXL-8BYBLPrb4-BNeN_Kzl8Phg-D-oheP0',  // PLZ 7xxxx
+  '1GEBRblklxkLVoGPdDVHzcYnw4QO362B5cb1rB49x0dc',   // PLZ 8xxxx
+  '1AC9taoYJOoVNCBk5yNtCgnzIOW6HjdFQ_zx8GL0Vr6w',   // PLZ 9xxxx
+];
 
 // ---- Hilfsfunktionen ----
 
@@ -82,33 +97,21 @@ function findLayout(data) {
   return { headerRow: headerRow, blockCol: blockCol, datumCol: datumCol };
 }
 
-// ---- doGet: Sheet → Karte (alle Tabs) ----
-
-function doGet(e) {
-  var key = (e && e.parameter) ? e.parameter.key : null;
-  if (key !== API_KEY) {
-    return ContentService.createTextOutput(JSON.stringify({error: 'Unauthorized'}))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-
-  var sheets      = SpreadsheetApp.getActiveSpreadsheet().getSheets();
-  var rows        = [];
-  var block_stats = {};
-  var tabs        = [];
-
+// Alle Sheets aus einem Spreadsheet lesen (Werte + Hintergründe)
+function readSpreadsheet(ss, rows, block_stats, tabs) {
+  var sheets = ss.getSheets();
   for (var s = 0; s < sheets.length; s++) {
     var sheet   = sheets[s];
     var lastRow = sheet.getLastRow();
     var lastCol = sheet.getLastColumn();
     if (lastRow < 2 || lastCol < 2) continue;
 
-    var data = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-    var bgs  = sheet.getRange(1, 1, lastRow, lastCol).getBackgrounds();
-
+    var data   = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+    var bgs    = sheet.getRange(1, 1, lastRow, lastCol).getBackgrounds();
     var layout = findLayout(data);
     if (!layout) continue;
 
-    tabs.push(sheet.getName());
+    tabs.push(ss.getName() + ' / ' + sheet.getName());
 
     for (var r = layout.headerRow + 1; r < data.length; r++) {
       var plzRaw = String(data[r][layout.blockCol] || '').trim();
@@ -123,33 +126,57 @@ function doGet(e) {
         rowTotal++;
         if (colored) rowBelegt++;
         assignments.push({
-          datum: formatDatum(data[r][c - 1]),
-          kunde: kunde,
+          datum:  formatDatum(data[r][c - 1]),
+          kunde:  kunde,
           status: colored ? 'belegt' : 'wunsch'
         });
       }
 
-      rows.push({plz_raw: plzRaw, assignments: assignments});
+      rows.push({ plz_raw: plzRaw, assignments: assignments });
 
       blockToPlz3List(plzRaw).forEach(function(d) {
-        if (!block_stats[d]) block_stats[d] = {total: 0, belegt: 0};
+        if (!block_stats[d]) block_stats[d] = { total: 0, belegt: 0 };
         block_stats[d].total  += rowTotal;
         block_stats[d].belegt += rowBelegt;
       });
     }
   }
-
-  return ContentService.createTextOutput(JSON.stringify({rows: rows, block_stats: block_stats, tabs: tabs}))
-    .setMimeType(ContentService.MimeType.JSON);
 }
 
-// ---- doPost: Karte → Sheet (schreibt in ALLE Zeilen des Blocks) ----
+// ---- doGet: alle Bearbeitungs-Sheets → Karte ----
+
+function doGet(e) {
+  var key = (e && e.parameter) ? e.parameter.key : null;
+  if (key !== API_KEY) {
+    return ContentService.createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
+      .setMimeType(ContentService.MimeType.JSON);
+  }
+
+  var rows = [], block_stats = {}, tabs = [], errors = [];
+
+  for (var i = 0; i < SHEET_IDS.length; i++) {
+    var id = SHEET_IDS[i];
+    if (!id || id.indexOf('PLACEHOLDER') === 0) continue;
+    try {
+      var ss = SpreadsheetApp.openById(id);
+      readSpreadsheet(ss, rows, block_stats, tabs);
+    } catch (err) {
+      errors.push('Sheet ' + i + ' (' + id.substring(0, 8) + '…): ' + err.toString());
+    }
+  }
+
+  return ContentService.createTextOutput(JSON.stringify({
+    rows: rows, block_stats: block_stats, tabs: tabs, errors: errors
+  })).setMimeType(ContentService.MimeType.JSON);
+}
+
+// ---- doPost: Karte → richtiges Bearbeitungs-Sheet schreiben ----
 
 function doPost(e) {
   try {
     var body = JSON.parse(e.postData.contents);
     if (body.key !== API_KEY) {
-      return ContentService.createTextOutput(JSON.stringify({error: 'Unauthorized'}))
+      return ContentService.createTextOutput(JSON.stringify({ error: 'Unauthorized' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
@@ -159,89 +186,98 @@ function doPost(e) {
     var datum  = String(body.datum || '').trim();
 
     if (!plz3 || !kunde) {
-      return ContentService.createTextOutput(JSON.stringify({error: 'plz3 und kunde erforderlich'}))
+      return ContentService.createTextOutput(JSON.stringify({ error: 'plz3 und kunde erforderlich' }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
     var BELEGT_COLOR = '#92d050';
     var WUNSCH_COLOR = '#ffffff';
-    var sheets  = SpreadsheetApp.getActiveSpreadsheet().getSheets();
-    var written = 0;
-    var tabName = null;
+    var written = 0, tabName = null;
 
-    for (var s = 0; s < sheets.length; s++) {
-      var sheet   = sheets[s];
-      var lastRow = sheet.getLastRow();
-      var lastCol = sheet.getLastColumn();
-      if (lastRow < 2 || lastCol < 2) continue;
+    for (var i = 0; i < SHEET_IDS.length; i++) {
+      var id = SHEET_IDS[i];
+      if (!id || id.indexOf('PLACEHOLDER') === 0) continue;
 
-      var data   = sheet.getRange(1, 1, lastRow, lastCol).getValues();
-      var layout = findLayout(data);
-      if (!layout) continue;
+      var ss;
+      try { ss = SpreadsheetApp.openById(id); } catch (err) { continue; }
 
-      // ALLE Zeilen finden, deren Block die PLZ3 enthält
-      var rowIdxList = [];
-      for (var r = layout.headerRow + 1; r < data.length; r++) {
-        if (blockToPlz3List(data[r][layout.blockCol]).indexOf(plz3) >= 0) {
-          rowIdxList.push(r);
+      var sheets = ss.getSheets();
+      var found  = false;
+
+      for (var s = 0; s < sheets.length; s++) {
+        var sheet   = sheets[s];
+        var lastRow = sheet.getLastRow();
+        var lastCol = sheet.getLastColumn();
+        if (lastRow < 2 || lastCol < 2) continue;
+
+        var data   = sheet.getRange(1, 1, lastRow, lastCol).getValues();
+        var layout = findLayout(data);
+        if (!layout) continue;
+
+        var rowIdxList = [];
+        for (var r = layout.headerRow + 1; r < data.length; r++) {
+          if (blockToPlz3List(data[r][layout.blockCol]).indexOf(plz3) >= 0) {
+            rowIdxList.push(r);
+          }
         }
-      }
-      if (rowIdxList.length === 0) continue;
+        if (rowIdxList.length === 0) continue;
 
-      tabName = sheet.getName();
-      var color = (status === 'belegt') ? BELEGT_COLOR : WUNSCH_COLOR;
+        tabName = ss.getName() + ' / ' + sheet.getName();
+        var color = (status === 'belegt') ? BELEGT_COLOR : WUNSCH_COLOR;
 
-      for (var k = 0; k < rowIdxList.length; k++) {
-        var rowIdx   = rowIdxList[k];
-        var sheetRow = rowIdx + 1; // data[0] = Zeile 1
-        var rowVals  = data[rowIdx];
+        for (var k = 0; k < rowIdxList.length; k++) {
+          var rowIdx   = rowIdxList[k];
+          var sheetRow = rowIdx + 1;
+          var rowVals  = data[rowIdx];
 
-        // Vorhandenen Kunde-Eintrag in dieser Zeile suchen
-        var found = -1;
-        for (var c = layout.datumCol + 1; c < rowVals.length; c += 2) {
-          if (String(rowVals[c] || '').trim() === kunde) { found = c; break; }
-        }
+          var foundCol = -1;
+          for (var c = layout.datumCol + 1; c < rowVals.length; c += 2) {
+            if (String(rowVals[c] || '').trim() === kunde) { foundCol = c; break; }
+          }
 
-        if (found >= 0) {
-          sheet.getRange(sheetRow, found).setBackground(color);     // Datum
-          sheet.getRange(sheetRow, found + 1).setBackground(color); // Kunde
-          written++;
-
-        } else if (status === 'belegt') {
-          var done = false;
-          for (var i = layout.datumCol; i < rowVals.length - 1; i += 2) {
-            if (!String(rowVals[i + 1] || '').trim()) {
-              sheet.getRange(sheetRow, i + 1).setValue(parseDatum(datum));
-              sheet.getRange(sheetRow, i + 1).setBackground(BELEGT_COLOR);
-              sheet.getRange(sheetRow, i + 2).setValue(kunde);
-              sheet.getRange(sheetRow, i + 2).setBackground(BELEGT_COLOR);
-              done = true;
-              break;
+          if (foundCol >= 0) {
+            sheet.getRange(sheetRow, foundCol).setBackground(color);
+            sheet.getRange(sheetRow, foundCol + 1).setBackground(color);
+            written++;
+          } else if (status === 'belegt') {
+            var done = false;
+            for (var j = layout.datumCol; j < rowVals.length - 1; j += 2) {
+              if (!String(rowVals[j + 1] || '').trim()) {
+                sheet.getRange(sheetRow, j + 1).setValue(parseDatum(datum));
+                sheet.getRange(sheetRow, j + 1).setBackground(BELEGT_COLOR);
+                sheet.getRange(sheetRow, j + 2).setValue(kunde);
+                sheet.getRange(sheetRow, j + 2).setBackground(BELEGT_COLOR);
+                done = true;
+                break;
+              }
             }
+            if (!done) {
+              sheet.getRange(sheetRow, lastCol + 1).setValue(parseDatum(datum));
+              sheet.getRange(sheetRow, lastCol + 1).setBackground(BELEGT_COLOR);
+              sheet.getRange(sheetRow, lastCol + 2).setValue(kunde);
+              sheet.getRange(sheetRow, lastCol + 2).setBackground(BELEGT_COLOR);
+            }
+            written++;
           }
-          if (!done) {
-            sheet.getRange(sheetRow, lastCol + 1).setValue(parseDatum(datum));
-            sheet.getRange(sheetRow, lastCol + 1).setBackground(BELEGT_COLOR);
-            sheet.getRange(sheetRow, lastCol + 2).setValue(kunde);
-            sheet.getRange(sheetRow, lastCol + 2).setBackground(BELEGT_COLOR);
-          }
-          written++;
         }
+
+        found = true;
+        break;
       }
 
-      break; // Block gefunden – keine weiteren Tabs nötig
+      if (found) break;
     }
 
     if (!tabName) {
-      return ContentService.createTextOutput(JSON.stringify({error: 'PLZ nicht gefunden: ' + plz3}))
+      return ContentService.createTextOutput(JSON.stringify({ error: 'PLZ nicht gefunden: ' + plz3 }))
         .setMimeType(ContentService.MimeType.JSON);
     }
 
-    return ContentService.createTextOutput(JSON.stringify({ok: true, tab: tabName, zeilen: written}))
+    return ContentService.createTextOutput(JSON.stringify({ ok: true, tab: tabName, zeilen: written }))
       .setMimeType(ContentService.MimeType.JSON);
 
   } catch (err) {
-    return ContentService.createTextOutput(JSON.stringify({error: err.toString()}))
+    return ContentService.createTextOutput(JSON.stringify({ error: err.toString() }))
       .setMimeType(ContentService.MimeType.JSON);
   }
 }

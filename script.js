@@ -1,4 +1,4 @@
-var canvasRenderer = L.canvas({ padding: 0.5 });
+﻿var canvasRenderer = L.canvas({ padding: 0.5 });
 var map = L.map("map", { renderer: canvasRenderer }).setView([51.2, 10.4], 7);
 
 L.tileLayer('https://{s}.basemaps.cartocdn.com/light_nolabels/{z}/{x}/{y}.png', {
@@ -15,9 +15,13 @@ window.getAdminSel = function() { return sel; };
 var geoL = null;
 var geoLPremium = null;
 var geoLHatch = null;
+var geoLSel = null;
+var plzPolygons = {}; // plz3 -> [{lat,lng}] alle Randpunkte des Polygons
 var svgHatchRenderer = L.svg({ padding: 0.5 });
+var svgSelRenderer   = L.svg({ padding: 0.5 });
 window.showBasis   = true;
 window.showPremium = true;
+window.hideBelegt  = false;
 
 var PREMIUM_MAP_KEYS = ['BKV','SACH','FLOT','SONST'];
 function isPremiumContact(suchbegriff) {
@@ -108,7 +112,7 @@ function styleFeaturePremium(feature) {
     var allE = window.plzStatusData[plz3];
     var pe = Array.isArray(allE) ? allE.filter(function(e){ return isPremiumContact(e.suchbegriff); }) : [];
     var sts = pe.map(function(e){ return e.status; });
-    if (sts.indexOf('belegt')     >= 0) return { fillColor: '#7d3c98', fillOpacity: 0.65, color: '#5b2c6f', weight: 2 };
+    if (sts.indexOf('belegt')     >= 0 && !window.hideBelegt) return { fillColor: '#7d3c98', fillOpacity: 0.65, color: '#5b2c6f', weight: 2 };
     if (sts.indexOf('reserviert') >= 0) return { fillColor: '#1a5276', fillOpacity: 0.55, color: '#154360', weight: 1.5 };
     if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#5b2c6f', fillOpacity: 0.30, color: '#4a235a', weight: 1.0 };
   }
@@ -127,17 +131,21 @@ function styleFeature(feature) {
     var entries = window.plzStatusData[plz3];
     var basisE = Array.isArray(entries) ? entries.filter(function(e){ return !isPremiumContact(e.suchbegriff); }) : [];
     var sts = window.showBasis ? basisE.map(function(e){ return e.status; }) : [];
-    if (sts.indexOf('belegt') >= 0) {
+    if (sts.indexOf('belegt') >= 0 && !window.hideBelegt) {
       var belegtE = basisE.filter(function(e){ return e.status === 'belegt'; });
       var hasBBM  = belegtE.some(function(e){
         var isBL = e.typ === 'bl' || !!e.bl_wert || /[_\s(]BL\d+/i.test(e.suchbegriff || '');
         return !isBL;
       });
-      if (hasBBM) return { fillColor: '#1e8449', fillOpacity: 0.70, color: '#145a32', weight: 2 };
+      // O(1)-Lookup aus precomputed Map (buildPartialMap läuft nur bei Datenänderung)
+      var partialLvl = window.plzPartialMap[plz3] || 0;
+      var foMap = [0.70, 0.15, 0.38, 0.65]; // [voll, p1<33%, p2 33-66%, p3≥66%]
+      var fo = foMap[partialLvl] !== undefined ? foMap[partialLvl] : 0.70;
+      if (hasBBM) return { fillColor: '#1e8449', fillOpacity: fo, color: '#145a32', weight: 2 };
       var blTotal = belegtE.reduce(function(s,e){ return s + (parseInt(e.bl_wert)||0); }, 0);
-      if (blTotal >= 70) return { fillColor: '#b7950b', fillOpacity: 0.75, color: '#9a7d0a', weight: 2 };
-      if (blTotal >= 30) return { fillColor: '#d4ac0d', fillOpacity: 0.60, color: '#b7950b', weight: 1.5 };
-      return { fillColor: '#f4d03f', fillOpacity: 0.45, color: '#d4ac0d', weight: 1.5 };
+      if (blTotal >= 70) return { fillColor: '#e74c3c', fillOpacity: fo, color: '#c0392b', weight: 2 };
+      if (blTotal >= 30) return { fillColor: '#e67e22', fillOpacity: fo * 0.85, color: '#ca6f1e', weight: 1.5 };
+      return { fillColor: '#5dade2', fillOpacity: fo * 0.65, color: '#1a5276', weight: 1.5 };
     }
     if (sts.indexOf('reserviert') >= 0) return { fillColor: '#e67e22', fillOpacity: 0.55, color: '#ba6010', weight: 1.5 };
     if (window.statusMode && sts.indexOf('wunsch') >= 0) return { fillColor: '#c8a200', fillOpacity: 0.30, color: '#9a7800', weight: 1.0 };
@@ -164,6 +172,16 @@ function onEachFeature(feature, layer) {
   } catch (e) {
     centroids[plz3] = [layer.getBounds().getCenter()];
   }
+  // Randpunkte speichern (für Fahrtstrecke zum äußersten Punkt)
+  var pts = plzPolygons[plz3] || [];
+  var geom = feature.geometry;
+  var rings = geom.type === 'Polygon' ? [geom.coordinates[0]]
+            : geom.type === 'MultiPolygon' ? geom.coordinates.map(function(p){ return p[0]; })
+            : [];
+  rings.forEach(function(ring) {
+    ring.forEach(function(c) { pts.push({ lat: c[1], lng: c[0] }); });
+  });
+  plzPolygons[plz3] = pts;
   layer.bindTooltip(function(l) {
     var p = l.feature.properties.plz;
     var b = plzBusinesses[p];
@@ -237,16 +255,18 @@ function addLabels() {
       if (!bounds.contains(c)) return;
       var pt = map.latLngToContainerPoint(c);
       // Skip if centroid is too close to a city name
+      var cityGuard2 = cityGuard * cityGuard;
       var nearCity = cityPts.some(function(o) {
         var dx = o[0] - pt.x, dy = o[1] - pt.y;
-        return Math.sqrt(dx*dx + dy*dy) < cityGuard;
+        return dx*dx + dy*dy < cityGuard2;
       });
       if (nearCity) return;
       // Skip if too close to another PLZ label
       if (spacing > 0) {
+        var spacing2 = spacing * spacing;
         var tooClose = occupied.some(function(o) {
           var dx = o[0] - pt.x, dy = o[1] - pt.y;
-          return Math.sqrt(dx*dx + dy*dy) < spacing;
+          return dx*dx + dy*dy < spacing2;
         });
         if (tooClose) return;
         occupied.push([pt.x, pt.y]);
@@ -269,7 +289,12 @@ function addLabels() {
   });
 }
 
-map.on("zoomend moveend", function() { addLabels(); updateCityLayer(); });
+var _addLabelsTimer = null;
+map.on("moveend", function() {
+  clearTimeout(_addLabelsTimer);
+  _addLabelsTimer = setTimeout(addLabels, 200);
+});
+map.on("zoomend", function() { addLabels(); updateCityLayer(); });
 
 function togglePLZ(plz3) {
   if (multiMode) {
@@ -296,13 +321,22 @@ function togglePLZ(plz3) {
 }
 
 function refreshLayer(plz3) {
+  buildPartialMap();
   var layer = allLayers[plz3];
   if (layer) layer.setStyle(styleFeature(layer.feature));
+  if (geoLSel) geoLSel.setStyle(function(f) { return styleSelection(f); });
+}
+
+function styleSelection(feature) {
+  var plz3 = feature.properties.plz;
+  if (selContact[plz3]) return { fill: false, color: '#17a589', weight: 3, opacity: 1 };
+  if (sel[plz3])        return { fill: false, color: '#642d7b', weight: 3, opacity: 1 };
+  return { fill: false, color: 'transparent', weight: 0, opacity: 0 };
 }
 
 function styleHatch(feature) {
   var plz3 = feature.properties.plz;
-  if (!window.showBasis || !window.plzStatusData || !window.plzStatusData[plz3])
+  if (!window.showBasis || window.hideBelegt || !window.plzStatusData || !window.plzStatusData[plz3])
     return { fill: false, opacity: 0, weight: 0 };
   var entries = window.plzStatusData[plz3];
   var basisE = Array.isArray(entries) ? entries.filter(function(e){ return !isPremiumContact(e.suchbegriff); }) : [];
@@ -324,10 +358,30 @@ function styleHatch(feature) {
   return { fill: false, opacity: 0, weight: 0 };
 }
 
+
+// Precomputed partial-level map – rebuilt on data change, O(1) lookup in styleFeature
+window.plzPartialMap = {};
+function buildPartialMap() {
+  var result = {};
+  var data = window.plzStatusData || {};
+  Object.keys(data).forEach(function(plz3) {
+    var entries = data[plz3];
+    if (!Array.isArray(entries)) return;
+    var basisE  = entries.filter(function(e){ return !isPremiumContact(e.suchbegriff); });
+    var belegtE = basisE.filter(function(e){ return e.status === 'belegt'; });
+    var lvl = 0;
+    belegtE.forEach(function(e){ if ((e.partial || 0) > lvl) lvl = e.partial || 0; });
+    result[plz3] = lvl;
+  });
+  window.plzPartialMap = result;
+}
+
 function refreshAll() {
+  buildPartialMap();
   if (geoL) geoL.setStyle(function(f) { return styleFeature(f); });
   if (geoLPremium) geoLPremium.setStyle(function(f) { return styleFeaturePremium(f); });
   if (geoLHatch) geoLHatch.setStyle(function(f) { return styleHatch(f); });
+  if (geoLSel) geoLSel.setStyle(function(f) { return styleSelection(f); });
 }
 
 function toggleBasisLayer() {
@@ -629,7 +683,15 @@ var LEGAL_CONTENT = {
     '<p><a href="https://github.com/Miselmasel/PLZ-Datenbank" target="_blank">Miselmasel/PLZ-Datenbank</a></p>' +
     '<h3>Bundesland-Grenzen</h3>' +
     '<p><a href="https://github.com/isellsoap/deutschlandGeoJSON" target="_blank">isellsoap/deutschlandGeoJSON</a> – ' +
-    '<a href="https://github.com/isellsoap/deutschlandGeoJSON/blob/main/LICENSE" target="_blank">MIT</a></p>'
+    '<a href="https://github.com/isellsoap/deutschlandGeoJSON/blob/main/LICENSE" target="_blank">MIT</a></p>' +
+    '<h3>Routenberechnung</h3>' +
+    '<p><a href="https://project-osrm.org" target="_blank">OSRM</a> (Open Source Routing Machine) – ' +
+    'öffentliche Demo-API (<a href="https://github.com/Project-OSRM/osrm-backend/blob/master/LICENSE.TXT" target="_blank">BSD-2-Clause</a>). ' +
+    'Wird für Entfernung und Fahrtstrecke im XLS-Export verwendet.</p>' +
+    '<h3>XLS-Verarbeitung</h3>' +
+    '<p><a href="https://sheetjs.com" target="_blank">SheetJS / xlsx.js</a> v0.18.5 – ' +
+    '<a href="https://github.com/SheetJS/sheetjs/blob/master/LICENSE" target="_blank">Apache-2.0</a>. ' +
+    'Wird für den Kunden-Import (XLS/XLSX lesen) verwendet.</p>'
 };
 
 function showLegal(type) {
@@ -667,36 +729,35 @@ fetch(GEO_URL)
       interactive: false,
       renderer: svgHatchRenderer
     }).addTo(map);
+    geoLSel = L.geoJSON(data, {
+      style: styleSelection,
+      interactive: false,
+      renderer: svgSelRenderer
+    }).addTo(map);
     // Pattern-Defs in den Leaflet-SVG injizieren (url(#id) funktioniert nur im selben <svg>)
     var svgEl = svgHatchRenderer._container;
     if (svgEl) {
       var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
       defs.innerHTML =
-        // BBM-Schraffierung: 3 Stufen (1=<33%, 2=33-66%, 3=>66%)
-        '<pattern id="hatch-bbm-p1" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(45)">' +
-          '<rect width="16" height="16" fill="#c8f0d8" fill-opacity="0.30"/>' +
-          '<line x1="0" y1="0" x2="0" y2="16" stroke="#52be80" stroke-width="1.5"/>' +
+        // BBM-Schraffierung: 3 Stufen – nur Linien, Hintergrundopazität kommt vom Canvas-Layer
+        '<pattern id="hatch-bbm-p1" patternUnits="userSpaceOnUse" width="18" height="18" patternTransform="rotate(45)">' +
+          '<line x1="0" y1="0" x2="0" y2="18" stroke="#145a32" stroke-width="1.5"/>' +
         '</pattern>' +
         '<pattern id="hatch-bbm-p2" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">' +
-          '<rect width="10" height="10" fill="#a9dfbf" fill-opacity="0.45"/>' +
-          '<line x1="0" y1="0" x2="0" y2="10" stroke="#27ae60" stroke-width="2.5"/>' +
+          '<line x1="0" y1="0" x2="0" y2="10" stroke="#145a32" stroke-width="2.5"/>' +
         '</pattern>' +
         '<pattern id="hatch-bbm-p3" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">' +
-          '<rect width="6" height="6" fill="#82c99a" fill-opacity="0.55"/>' +
-          '<line x1="0" y1="0" x2="0" y2="6" stroke="#1e8449" stroke-width="3"/>' +
+          '<line x1="0" y1="0" x2="0" y2="6" stroke="#0b3d20" stroke-width="3.5"/>' +
         '</pattern>' +
-        // BL-Schraffierung: 3 Stufen
-        '<pattern id="hatch-bl-p1" patternUnits="userSpaceOnUse" width="16" height="16" patternTransform="rotate(45)">' +
-          '<rect width="16" height="16" fill="#fef9e7" fill-opacity="0.30"/>' +
-          '<line x1="0" y1="0" x2="0" y2="16" stroke="#d4ac0d" stroke-width="1.5"/>' +
+        // BL-Schraffierung: 3 Stufen – nur Linien
+        '<pattern id="hatch-bl-p1" patternUnits="userSpaceOnUse" width="18" height="18" patternTransform="rotate(45)">' +
+          '<line x1="0" y1="0" x2="0" y2="18" stroke="#1a5276" stroke-width="1.5"/>' +
         '</pattern>' +
-        '<pattern id="hatch-bl-p2" patternUnits="userSpaceOnUse" width="8" height="8" patternTransform="rotate(45)">' +
-          '<rect width="8" height="8" fill="#f9e79f" fill-opacity="0.30"/>' +
-          '<line x1="0" y1="0" x2="0" y2="8" stroke="#b7950b" stroke-width="2"/>' +
+        '<pattern id="hatch-bl-p2" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)">' +
+          '<line x1="0" y1="0" x2="0" y2="9" stroke="#ca6f1e" stroke-width="2.5"/>' +
         '</pattern>' +
         '<pattern id="hatch-bl-p3" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">' +
-          '<rect width="5" height="5" fill="#f0c640" fill-opacity="0.40"/>' +
-          '<line x1="0" y1="0" x2="0" y2="5" stroke="#9a7d0a" stroke-width="2.5"/>' +
+          '<line x1="0" y1="0" x2="0" y2="5" stroke="#922b21" stroke-width="3.5"/>' +
         '</pattern>';
       svgEl.insertBefore(defs, svgEl.firstChild);
     }
@@ -795,7 +856,6 @@ function updateCityLayer() {
   });
 }
 
-map.on("zoomend", updateCityLayer);
 updateCityLayer();
 
 // ===== Overlay: Bundeslaender, pastellfarben im Hintergrund =====

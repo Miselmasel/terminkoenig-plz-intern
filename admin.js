@@ -211,6 +211,17 @@ function toggleStatusMode() {
   if (typeof refreshAll === 'function') refreshAll();
 }
 
+function toggleBelegtLayer() {
+  window.hideBelegt = !window.hideBelegt;
+  var btn = document.getElementById('belegtToggleBtn');
+  if (btn) {
+    btn.textContent = window.hideBelegt ? 'Belegt: ein' : 'Belegt: aus';
+    btn.className   = window.hideBelegt ? 'bb' : 'bk';
+    btn.style.cssText = 'width:auto;margin:0;padding:3px 8px;font-size:11px;';
+  }
+  if (typeof refreshAll === 'function') refreshAll();
+}
+
 // ─── Auswahl-Zähler (für Wunsch-Panel) ──────────────────────────
 window.updateSelCount = function() {
   var cnt = Object.keys(window.getAdminSel ? window.getAdminSel() : {}).length;
@@ -367,17 +378,35 @@ async function deleteAssignment(plz3, contactId) {
 
 async function deleteContact(id, name) {
   if (!confirm('Kontakt "' + name + '" wirklich löschen?\n(Alle PLZ-Zuweisungen werden ebenfalls entfernt.)')) return;
+
+  // Sofort aus lokalem Zustand entfernen und UI aktualisieren
+  allContacts = allContacts.filter(function(c) { return String(c.id) !== String(id); });
+  if (window.plzStatusData) {
+    Object.keys(window.plzStatusData).forEach(function(plz3) {
+      window.plzStatusData[plz3] = window.plzStatusData[plz3].filter(function(e) {
+        return String(e.contact_id) !== String(id);
+      });
+      if (!window.plzStatusData[plz3].length) delete window.plzStatusData[plz3];
+    });
+  }
+  if (String(_highlightedContactId) === String(id)) clearContactPLZ();
+  renderContactList(allContacts);
+  populateAllContactDropdowns();
+  updateStatusCount();
+  if (typeof refreshAll === 'function') refreshAll();
+
+  // Server-Löschung im Hintergrund
   try {
     var res  = await fetch('api/contacts.php?id=' + id, { method: 'DELETE' });
     var data = await res.json();
-    if (data.ok) {
-      await loadPlzStatus();
-      if (typeof refreshAll === 'function') refreshAll();
-      loadContacts();
-    } else {
-      alert(data.error || 'Löschen fehlgeschlagen.');
+    if (!data.ok) {
+      alert(data.error || 'Löschen auf dem Server fehlgeschlagen – Liste wird neu geladen.');
+      loadContacts(); loadPlzStatus();
     }
-  } catch(e) { console.warn('Kontakt löschen fehlgeschlagen:', e); }
+  } catch(e) {
+    console.warn('Kontakt löschen fehlgeschlagen:', e);
+    loadContacts(); loadPlzStatus();
+  }
 }
 
 async function freigeben(plz3, contactId) {
@@ -1222,7 +1251,7 @@ function renderContactList(contacts) {
     var isInt   = c.kontakt_typ === 'interessent';
     var ktBg    = isInt ? '#e67e22' : '#27ae60';
     var ktLabel = isInt ? 'I' : 'K';
-    var isNeu   = c.gesehen == 0;
+    var isNeu   = c.gesehen == 0 && c.kontakt_typ !== 'kunde';
     var parsed  = parseKontaktBadges(c);
 
     var sbParts  = (c.suchbegriff || '').split('_');
@@ -1285,6 +1314,28 @@ function filterContacts() {
 }
 
 var _highlightedContactId = null;
+var _ownPlzMarker = null;
+
+function showOwnPlzMarker(contactId) {
+  if (_ownPlzMarker) { try { map.removeLayer(_ownPlzMarker); } catch(e){} _ownPlzMarker = null; }
+  var c = (allContacts || []).find(function(x) { return String(x.id) === String(contactId); });
+  if (!c || !c.eigene_plz) return;
+  var plz3 = String(c.eigene_plz).replace(/\D/g, '').substring(0, 3);
+  if (plz3.length < 3) return;
+  var pts = window.centroids && window.centroids[plz3];
+  if (!pts || !pts.length) return;
+  _ownPlzMarker = L.marker(pts[0], {
+    icon: L.divIcon({
+      className: '',
+      html: '<div style="width:16px;height:16px;border-radius:50%;background:#e74c3c;border:3px solid #fff;box-shadow:0 0 8px rgba(0,0,0,.55);"></div>',
+      iconSize: [16, 16],
+      iconAnchor: [8, 8]
+    }),
+    interactive: true,
+    zIndexOffset: 1000
+  }).addTo(map);
+  _ownPlzMarker.bindTooltip('Eigene PLZ: ' + c.eigene_plz + ' (' + esc(c.suchbegriff) + ')', { sticky: true });
+}
 
 function highlightContactPLZ(contactId) {
   if (String(_highlightedContactId) === String(contactId)) {
@@ -1300,12 +1351,24 @@ function highlightContactPLZ(contactId) {
       selContact[plz3] = true;
     }
   });
+  // Auto-fill Zuweisen search with selected contact
+  var c = (allContacts || []).find(function(x) { return String(x.id) === String(contactId); });
+  if (c) {
+    var label = c.suchbegriff || '';
+    if (c.kundennummer) label += ' [' + c.kundennummer + ']';
+    var wid = document.getElementById('lpWunschContactId');
+    var ws  = document.getElementById('lpWunschSearch');
+    if (wid) wid.value = contactId;
+    if (ws)  ws.value  = label;
+  }
+  showOwnPlzMarker(contactId);
   if (typeof refreshAll === 'function') refreshAll();
 }
 
 function clearContactPLZ() {
   _highlightedContactId = null;
   selContact = {};
+  if (_ownPlzMarker) { try { map.removeLayer(_ownPlzMarker); } catch(e){} _ownPlzMarker = null; }
   if (typeof refreshAll === 'function') refreshAll();
 }
 
@@ -1415,6 +1478,7 @@ function openContactForm(contact) {
   document.getElementById('cmSuchbegriff').value    = contact ? (contact.suchbegriff    || '') : '';
   document.getElementById('cmKundennummer').value   = contact ? (contact.kundennummer   || '') : '';
   document.getElementById('cmVertragsnummer').value = contact ? (contact.vertragsnummer || '') : '';
+  document.getElementById('cmEigenePlz').value      = contact ? (contact.eigene_plz     || '') : '';
   document.getElementById('cmNotizen').value        = contact ? (contact.notizen        || '') : '';
 
   var typ = contact ? (contact.typ || 'bbm') : 'bbm';
@@ -1426,6 +1490,20 @@ function openContactForm(contact) {
 
   updateBlDropdown();
   document.getElementById('cmMsg').textContent = '';
+
+  var plzExportSection = document.getElementById('cmPlzExportSection');
+  if (plzExportSection) {
+    if (contact && contact.id) {
+      plzExportSection.style.display = '';
+      var link = document.getElementById('cmPlzExportLink');
+      if (link) {
+        link.href = '#';
+        link.onclick = (function(cid) { return function(e) { e.preventDefault(); downloadPlzXls(cid); }; })(contact.id);
+      }
+    } else {
+      plzExportSection.style.display = 'none';
+    }
+  }
 
   var docsSection = document.getElementById('cmDocsSection');
   if (docsSection) {
@@ -1469,6 +1547,7 @@ async function saveContact() {
     suchbegriff:    suchbegriff,
     kundennummer:   document.getElementById('cmKundennummer').value.trim(),
     vertragsnummer: document.getElementById('cmVertragsnummer').value.trim(),
+    eigene_plz:     document.getElementById('cmEigenePlz').value.trim(),
     typ:            typ,
     bl_wert:        blWert,
     notizen:        document.getElementById('cmNotizen').value.trim(),
@@ -1801,6 +1880,245 @@ async function restoreBackup(file, label) {
     msg.style.color = '#e74c3c';
     msg.textContent = 'Server nicht erreichbar';
   }
+}
+
+async function getOsrmDistance(fromLat, fromLon, toLat, toLon) {
+  try {
+    var url = 'https://router.project-osrm.org/route/v1/driving/' +
+      fromLon.toFixed(6) + ',' + fromLat.toFixed(6) + ';' +
+      toLon.toFixed(6)  + ',' + toLat.toFixed(6)  +
+      '?overview=false&steps=false';
+    var res = await fetch(url);
+    if (!res.ok) return null;
+    var data = await res.json();
+    if (data.code === 'Ok' && data.routes && data.routes[0]) {
+      return Math.round(data.routes[0].distance / 100) / 10; // m → km, 1 Stelle
+    }
+  } catch(e) { /* noop */ }
+  return null;
+}
+
+// ─── PLZ-Liste als XLS herunterladen (clientseitig) ──────────────
+async function downloadPlzXls(contactId) {
+  var c = (allContacts || []).find(function(x) { return String(x.id) === String(contactId); });
+  if (!c) { alert('Kontakt nicht gefunden'); return; }
+  if (!plzDB) {
+    alert('PLZ-Datenbank noch nicht geladen – bitte kurz warten und erneut versuchen.');
+    return;
+  }
+
+  var statusData = window.plzStatusData || {};
+  var plz3List = Object.keys(statusData).filter(function(plz3) {
+    return Array.isArray(statusData[plz3]) && statusData[plz3].some(function(e) {
+      return String(e.contact_id) === String(contactId);
+    });
+  }).sort();
+
+  var eigenePlz = (c.eigene_plz || '').replace(/\D/g, '').substring(0, 5);
+  var epRef = null;
+  if (eigenePlz) {
+    var ep = plzDB.find(function(e) { return e.plz === eigenePlz; });
+    if (ep) epRef = { lat: parseFloat(ep.lat), lon: parseFloat(ep.lon) };
+  }
+
+  // Blockfarben (kräftig, zyklisch)
+  var BLOCK_COLORS = [
+    '#fff176', // gelb
+    '#f48fb1', // rosa
+    '#90caf9', // blau
+    '#a5d6a7', // grün
+    '#ce93d8', // lila
+    '#ffcc80', // orange
+    '#80deea', // türkis
+    '#ef9a9a', // rot/lachs
+  ];
+  var plz3ColorMap = {};
+  plz3List.forEach(function(p, i) { plz3ColorMap[p] = BLOCK_COLORS[i % BLOCK_COLORS.length]; });
+
+  // Alle 5-stelligen PLZ je Block aufbauen
+  var allEntries = [];
+  plz3List.forEach(function(plz3) {
+    var col = plz3ColorMap[plz3];
+    plzDB
+      .filter(function(e) { return e.plz.substring(0, 3) === plz3; })
+      .sort(function(a, b) { return a.plz.localeCompare(b.plz); })
+      .forEach(function(e) {
+        var lat = parseFloat(e.lat), lon = parseFloat(e.lon);
+        allEntries.push({
+          plz3: plz3, plz5: e.plz, ort: e.ort || '',
+          lat: lat, lon: lon, col: col,
+          dist: epRef ? haversine(epRef.lat, epRef.lon, lat, lon) : null,
+          fahrt: null
+        });
+      });
+  });
+
+  // Fortschrittsanzeige + OSRM sequenziell
+  var exportLink = document.getElementById('cmPlzExportLink');
+  var origText = exportLink ? exportLink.textContent : '↓ PLZ-Liste als XLS';
+  function setProgress(txt) { if (exportLink) exportLink.textContent = txt; }
+
+  if (epRef && allEntries.length) {
+    for (var ri = 0; ri < allEntries.length; ri++) {
+      setProgress('⏳ Fahrstrecken… ' + (ri + 1) + '/' + allEntries.length);
+      var en = allEntries[ri];
+      en.fahrt = await getOsrmDistance(epRef.lat, epRef.lon, en.lat, en.lon);
+      await new Promise(function(r) { setTimeout(r, 50); });
+    }
+  }
+  if (exportLink) exportLink.textContent = origText;
+
+  // Links: nach Entfernung; rechts: nach PLZ (bereits sortiert)
+  var leftRows  = allEntries.slice().sort(function(a, b) {
+    return (a.dist !== null ? a.dist : 999999) - (b.dist !== null ? b.dist : 999999);
+  });
+  var rightRows = allEntries.slice();
+  var n = allEntries.length;
+
+  function xlsEsc(s) {
+    return String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+  }
+  function kmFmt(d) { return (d !== null && d !== undefined) ? d.toFixed(1) + ' km' : ''; }
+
+  var kdnrPart = (c.kundennummer   || '').trim();
+  var vtrnr    = (c.vertragsnummer || '').trim();
+  // Umkreis aus aktuellem UI-Select
+  var mrsEl    = document.getElementById('mrs');
+  var umkreisVal = mrsEl ? (mrsEl.options[mrsEl.selectedIndex] ? mrsEl.options[mrsEl.selectedIndex].text : '') : '';
+  // Anzeigename: erste 2 Underscore-Segmente, Underscores → Leerzeichen (wie Panel-Anzeige)
+  var sbParts  = (c.suchbegriff || '').split('_');
+  var dispName = sbParts.slice(0, 2).join(' ') || c.suchbegriff || 'Kontakt';
+
+  // Gesamtbreite: A=leer | B=Gebiet | C=PLZ | D=Ort | E=Entf | F=Fahrt | G=leer | H=Gebiet | I=PLZ | J=Ort | K=Entf | L=Fahrt | M=Dat | N=Thema | O=Dat | P=Thema | Q=Dat | R=Thema | S=Dat | T=Thema
+  var COLS = 20;
+
+  var css =
+    'body{font-family:Arial,sans-serif;font-size:10pt;}' +
+    'table{border-collapse:collapse;}' +
+    'td{font-family:Arial,sans-serif;font-size:10pt;padding:3px 7px;border:1px solid #c0c0c0;white-space:nowrap;}' +
+    '.nb{border:none;background:none;}' +
+    '.lbl{font-weight:bold;font-size:11pt;background:#eaecf2;border:1px solid #b0b4c0;}' +
+    '.val{font-size:11pt;border:1px solid #c0c0c0;}' +
+    '.hdrL{font-weight:bold;background:#d4e6f1;text-align:center;border:1px solid #90b4c8;}' +
+    '.hdrR{font-weight:bold;background:#d5e8d4;text-align:center;border:1px solid #90b8a0;}' +
+    '.hdrI{font-weight:bold;background:#fff0b3;text-align:center;border:1px solid #c8b040;}' +
+    '.plz{font-family:Consolas,monospace;}' +
+    '.num{text-align:right;}' +
+    '.inp{background:#fff9e0;}';
+
+  var html =
+    '<html xmlns:o="urn:schemas-microsoft-com:office:office"' +
+    ' xmlns:x="urn:schemas-microsoft-com:office:excel"' +
+    ' xmlns="http://www.w3.org/TR/REC-html40">' +
+    '<head><meta http-equiv="Content-Type" content="text/html; charset=utf-8">' +
+    '<style>' + css + '</style></head><body><table>';
+
+  function emptyRow(cols) {
+    return '<tr><td class="nb" colspan="' + cols + '" style="height:5px;"></td></tr>';
+  }
+
+  // 3 leere Zeilen oben
+  html += emptyRow(COLS) + emptyRow(COLS) + emptyRow(COLS);
+
+  // Kopfzeilen
+  html +=
+    '<tr>' +
+      '<td class="nb"></td>' +
+      '<td class="lbl" colspan="2">Kunde:</td>' +
+      '<td class="val" colspan="4">' + xlsEsc(dispName) + '</td>' +
+      '<td class="nb"></td>' +
+      '<td class="lbl" colspan="2">Kd.Nr:</td>' +
+      '<td class="val" x:str colspan="3">' + xlsEsc(kdnrPart) + '</td>' +
+      '<td class="nb" colspan="7"></td>' +
+    '</tr><tr>' +
+      '<td class="nb"></td>' +
+      '<td class="lbl" colspan="2">Vertragsnr.:</td>' +
+      '<td class="val" x:str colspan="2">' + xlsEsc(vtrnr) + '</td>' +
+      '<td class="lbl" colspan="2">Eigene PLZ:</td>' +
+      '<td class="nb"></td>' +
+      '<td class="val" x:str colspan="2">' + xlsEsc(eigenePlz || '—') + '</td>' +
+      '<td class="lbl" colspan="2">Umkreis:</td>' +
+      '<td class="inp" colspan="2">' + xlsEsc(umkreisVal) + '</td>' +
+      '<td class="nb" colspan="6"></td>' +
+    '</tr><tr>' +
+      '<td class="nb"></td>' +
+      '<td class="lbl" colspan="2">PLZ-Gebiete (3-stlg.):</td>' +
+      '<td class="val">' + plz3List.length + '</td>' +
+      '<td class="lbl" colspan="2">PLZ gesamt:</td>' +
+      '<td class="val">' + n + '</td>' +
+      '<td class="nb" colspan="13"></td>' +
+    '</tr>' +
+    emptyRow(COLS);
+
+  // Spaltenüberschriften
+  // A=leer | B=Gebiet | C=PLZ | D=Ort | E=Entf(km) | F=Fahrt(km) | G=leer | H=Gebiet | I=PLZ | J=Ort | K=Entf | L=Fahrt | M-T = 4×Datum+Thema
+  // Sortierhinweis direkt im Kopf – keine Extra-Zeile, damit Excel-Filter funktioniert
+  html +=
+    '<tr>' +
+      '<td class="nb"></td>' +
+      '<td class="hdrL">Gebiet (↑ Entf.)</td>' +
+      '<td class="hdrL">PLZ</td>' +
+      '<td class="hdrL">Ort</td>' +
+      '<td class="hdrL">Entfernung</td>' +
+      '<td class="hdrL">Fahrtstrecke</td>' +
+      '<td class="nb"></td>' +
+      '<td class="hdrR">Gebiet (↑ PLZ)</td>' +
+      '<td class="hdrR">PLZ</td>' +
+      '<td class="hdrR">Ort</td>' +
+      '<td class="hdrR">Entfernung</td>' +
+      '<td class="hdrR">Fahrtstrecke</td>' +
+      '<td class="hdrI" style="min-width:90px;">Datum</td>' +
+      '<td class="hdrI" style="min-width:160px;">Thema</td>' +
+      '<td class="hdrI" style="min-width:90px;">Datum</td>' +
+      '<td class="hdrI" style="min-width:160px;">Thema</td>' +
+      '<td class="hdrI" style="min-width:90px;">Datum</td>' +
+      '<td class="hdrI" style="min-width:160px;">Thema</td>' +
+      '<td class="hdrI" style="min-width:90px;">Datum</td>' +
+      '<td class="hdrI" style="min-width:160px;">Thema</td>' +
+    '</tr>';
+
+  // Datenzeilen
+  for (var i = 0; i < n; i++) {
+    var l = leftRows[i];
+    var r = rightRows[i];
+    html += '<tr>';
+    // A leer
+    html += '<td class="nb"></td>';
+    // Links B–F
+    html +=
+      '<td class="plz" x:str style="background:' + l.col + ';font-weight:bold;">' + xlsEsc(l.plz3) + 'xx</td>' +
+      '<td class="plz" x:str style="background:' + l.col + ';">' + xlsEsc(l.plz5) + '</td>' +
+      '<td style="background:' + l.col + ';">' + xlsEsc(l.ort) + '</td>' +
+      '<td class="num" style="background:' + l.col + ';">' + kmFmt(l.dist) + '</td>' +
+      '<td class="num" style="background:' + l.col + ';">' + kmFmt(l.fahrt) + '</td>';
+    // G leer
+    html += '<td class="nb"></td>';
+    // Rechts H–L
+    html +=
+      '<td class="plz" x:str style="background:' + r.col + ';font-weight:bold;">' + xlsEsc(r.plz3) + 'xx</td>' +
+      '<td class="plz" x:str style="background:' + r.col + ';">' + xlsEsc(r.plz5) + '</td>' +
+      '<td style="background:' + r.col + ';">' + xlsEsc(r.ort) + '</td>' +
+      '<td class="num" style="background:' + r.col + ';">' + kmFmt(r.dist) + '</td>' +
+      '<td class="num" style="background:' + r.col + ';">' + kmFmt(r.fahrt) + '</td>';
+    // 4× Datum + Thema
+    for (var d = 0; d < 4; d++) {
+      html += '<td class="inp" style="min-width:90px;"></td><td class="inp" style="min-width:160px;"></td>';
+    }
+    html += '</tr>';
+  }
+
+  html += '</table></body></html>';
+
+  var safeName = sbParts.slice(0, 2).join('_').replace(/[^a-zA-Z0-9_\-äöüÄÖÜß]/g, '_') || 'Kontakt';
+  var safeKdnr = kdnrPart ? kdnrPart.replace(/[^a-zA-Z0-9_\-]/g, '_') : 'xxx';
+  var filename  = safeName + '_' + safeKdnr + '.xls';
+
+  var blob = new Blob(['﻿' + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+  var url  = URL.createObjectURL(blob);
+  var a    = document.createElement('a');
+  a.href = url; a.download = filename; document.body.appendChild(a);
+  a.click();
+  setTimeout(function() { URL.revokeObjectURL(url); a.remove(); }, 1000);
 }
 
 // ─── PLZ-Import ───────────────────────────────────────────────────
