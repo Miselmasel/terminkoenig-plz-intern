@@ -336,7 +336,7 @@ function refreshLayer(plz3) {
   buildPartialMap();
   var layer = allLayers[plz3];
   if (layer) layer.setStyle(styleFeature(layer.feature));
-  if (geoLSel) geoLSel.setStyle(function(f) { return styleSelection(f); });
+  rebuildSelLayer();
 }
 
 function styleSelection(feature) {
@@ -370,6 +370,62 @@ function styleHatch(feature) {
   return { fill: false, opacity: 0, weight: 0 };
 }
 
+// SVG-Layer enthalten nur sichtbare Features (Performance: beim Zoomen müssen
+// sonst ~670 unsichtbare Pfade pro Layer neu projiziert werden). Rebuild nur
+// bei Daten-/Auswahländerung, nicht beim Zoomen.
+function rebuildHatchLayer() {
+  if (geoLHatch) { map.removeLayer(geoLHatch); geoLHatch = null; }
+  if (!window.plzGeoData) return;
+  geoLHatch = L.geoJSON(window.plzGeoData, {
+    filter: function(f) { var s = styleHatch(f); return !!(s.fill || s.weight); },
+    style: styleHatch,
+    interactive: false,
+    renderer: svgHatchRenderer
+  }).addTo(map);
+  ensureHatchDefs();
+}
+
+function rebuildSelLayer() {
+  if (geoLSel) { map.removeLayer(geoLSel); geoLSel = null; }
+  if (!window.plzGeoData) return;
+  geoLSel = L.geoJSON(window.plzGeoData, {
+    filter: function(f) { var p = f.properties.plz; return !!(selContact[p] || sel[p]); },
+    style: styleSelection,
+    interactive: false,
+    renderer: svgSelRenderer
+  }).addTo(map);
+}
+
+// Pattern-Defs in den Leaflet-SVG injizieren (url(#id) funktioniert nur im selben <svg>).
+// Der Container existiert erst, sobald mindestens ein Pfad gerendert wurde.
+function ensureHatchDefs() {
+  var svgEl = svgHatchRenderer._container;
+  if (!svgEl || svgEl.querySelector('defs')) return;
+  var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
+  defs.innerHTML =
+    // BBM-Schraffierung: 3 Stufen – nur Linien, Hintergrundopazität kommt vom Canvas-Layer
+    '<pattern id="hatch-bbm-p1" patternUnits="userSpaceOnUse" width="18" height="18" patternTransform="rotate(45)">' +
+      '<line x1="0" y1="0" x2="0" y2="18" stroke="#145a32" stroke-width="1.5"/>' +
+    '</pattern>' +
+    '<pattern id="hatch-bbm-p2" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">' +
+      '<line x1="0" y1="0" x2="0" y2="10" stroke="#145a32" stroke-width="2.5"/>' +
+    '</pattern>' +
+    '<pattern id="hatch-bbm-p3" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">' +
+      '<line x1="0" y1="0" x2="0" y2="6" stroke="#0b3d20" stroke-width="3.5"/>' +
+    '</pattern>' +
+    // BL-Schraffierung: 3 Stufen – nur Linien
+    '<pattern id="hatch-bl-p1" patternUnits="userSpaceOnUse" width="18" height="18" patternTransform="rotate(45)">' +
+      '<line x1="0" y1="0" x2="0" y2="18" stroke="#1a5276" stroke-width="1.5"/>' +
+    '</pattern>' +
+    '<pattern id="hatch-bl-p2" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)">' +
+      '<line x1="0" y1="0" x2="0" y2="9" stroke="#ca6f1e" stroke-width="2.5"/>' +
+    '</pattern>' +
+    '<pattern id="hatch-bl-p3" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">' +
+      '<line x1="0" y1="0" x2="0" y2="5" stroke="#922b21" stroke-width="3.5"/>' +
+    '</pattern>';
+  svgEl.insertBefore(defs, svgEl.firstChild);
+}
+
 
 // Precomputed partial-level map – rebuilt on data change, O(1) lookup in styleFeature
 window.plzPartialMap = {};
@@ -392,8 +448,8 @@ function refreshAll() {
   buildPartialMap();
   if (geoL) geoL.setStyle(function(f) { return styleFeature(f); });
   if (geoLPremium) geoLPremium.setStyle(function(f) { return styleFeaturePremium(f); });
-  if (geoLHatch) geoLHatch.setStyle(function(f) { return styleHatch(f); });
-  if (geoLSel) geoLSel.setStyle(function(f) { return styleSelection(f); });
+  rebuildHatchLayer();
+  rebuildSelLayer();
 }
 
 function toggleBasisLayer() {
@@ -771,43 +827,9 @@ fetch(GEO_URL)
       interactive: false,
       renderer: canvasRenderer
     }).addTo(map);
-    geoLHatch = L.geoJSON(data, {
-      style: styleHatch,
-      interactive: false,
-      renderer: svgHatchRenderer
-    }).addTo(map);
-    geoLSel = L.geoJSON(data, {
-      style: styleSelection,
-      interactive: false,
-      renderer: svgSelRenderer
-    }).addTo(map);
-    // Pattern-Defs in den Leaflet-SVG injizieren (url(#id) funktioniert nur im selben <svg>)
-    var svgEl = svgHatchRenderer._container;
-    if (svgEl) {
-      var defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
-      defs.innerHTML =
-        // BBM-Schraffierung: 3 Stufen – nur Linien, Hintergrundopazität kommt vom Canvas-Layer
-        '<pattern id="hatch-bbm-p1" patternUnits="userSpaceOnUse" width="18" height="18" patternTransform="rotate(45)">' +
-          '<line x1="0" y1="0" x2="0" y2="18" stroke="#145a32" stroke-width="1.5"/>' +
-        '</pattern>' +
-        '<pattern id="hatch-bbm-p2" patternUnits="userSpaceOnUse" width="10" height="10" patternTransform="rotate(45)">' +
-          '<line x1="0" y1="0" x2="0" y2="10" stroke="#145a32" stroke-width="2.5"/>' +
-        '</pattern>' +
-        '<pattern id="hatch-bbm-p3" patternUnits="userSpaceOnUse" width="6" height="6" patternTransform="rotate(45)">' +
-          '<line x1="0" y1="0" x2="0" y2="6" stroke="#0b3d20" stroke-width="3.5"/>' +
-        '</pattern>' +
-        // BL-Schraffierung: 3 Stufen – nur Linien
-        '<pattern id="hatch-bl-p1" patternUnits="userSpaceOnUse" width="18" height="18" patternTransform="rotate(45)">' +
-          '<line x1="0" y1="0" x2="0" y2="18" stroke="#1a5276" stroke-width="1.5"/>' +
-        '</pattern>' +
-        '<pattern id="hatch-bl-p2" patternUnits="userSpaceOnUse" width="9" height="9" patternTransform="rotate(45)">' +
-          '<line x1="0" y1="0" x2="0" y2="9" stroke="#ca6f1e" stroke-width="2.5"/>' +
-        '</pattern>' +
-        '<pattern id="hatch-bl-p3" patternUnits="userSpaceOnUse" width="5" height="5" patternTransform="rotate(45)">' +
-          '<line x1="0" y1="0" x2="0" y2="5" stroke="#922b21" stroke-width="3.5"/>' +
-        '</pattern>';
-      svgEl.insertBefore(defs, svgEl.firstChild);
-    }
+    window.plzGeoData = data;
+    rebuildHatchLayer();
+    rebuildSelLayer();
     updateSidebar();
     addLabels();
   })
