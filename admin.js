@@ -188,6 +188,7 @@ async function loadPlzStatus() {
     });
     updateStatusCount();
     if (typeof refreshAll === 'function') refreshAll();
+    if (allContacts.length) renderContactList(allContacts);
   } catch(e) { console.warn('PLZ-Status nicht geladen:', e); }
 }
 
@@ -344,9 +345,29 @@ async function saveAssignment() {
     if (result.ok) {
       msg.style.color = '#27ae60';
       msg.textContent = 'Gespeichert.';
-      await loadPlzStatus();
-      if (typeof refreshAll === 'function') refreshAll();
+      // Lokalen Zustand sofort aktualisieren
+      var cid = contactId ? parseInt(contactId) : null;
+      if (status === 'frei' || !cid) {
+        if (window.plzStatusData[selectedPlz3]) {
+          window.plzStatusData[selectedPlz3] = window.plzStatusData[selectedPlz3].filter(function(e) {
+            return String(e.contact_id) !== String(contactId);
+          });
+          if (!window.plzStatusData[selectedPlz3].length) delete window.plzStatusData[selectedPlz3];
+        }
+      } else {
+        if (!window.plzStatusData[selectedPlz3]) window.plzStatusData[selectedPlz3] = [];
+        var aContact = allContacts.find(function(c) { return String(c.id) === String(cid); });
+        var aIdx = window.plzStatusData[selectedPlz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
+        var aEntry = { plz3: selectedPlz3, status: status, contact_id: cid, suchbegriff: aContact ? aContact.suchbegriff : '?', notiz: notiz };
+        if (aIdx >= 0) window.plzStatusData[selectedPlz3][aIdx] = aEntry;
+        else window.plzStatusData[selectedPlz3].push(aEntry);
+      }
+      updateStatusCount();
+      if (typeof refreshLayer === 'function') refreshLayer(selectedPlz3);
+      renderContactList(allContacts);
       setTimeout(closeAssignPanel, 700);
+      loadPlzStatus();
+      loadContacts();
     } else {
       msg.style.color = '#e74c3c';
       msg.textContent = result.error || 'Fehler beim Speichern.';
@@ -471,10 +492,20 @@ async function assignWunsch() {
     });
     var result = await res.json();
     if (result.ok) {
-      await loadPlzStatus();
+      // Lokalen Zustand sofort aktualisieren
+      plzList.forEach(function(plz3) {
+        if (!window.plzStatusData[plz3]) window.plzStatusData[plz3] = [];
+        var idx = window.plzStatusData[plz3].findIndex(function(e) { return String(e.contact_id) === String(contactId); });
+        var entry = { plz3: plz3, status: status, contact_id: parseInt(contactId), suchbegriff: suchbegriff, notiz: '' };
+        if (idx >= 0) window.plzStatusData[plz3][idx] = entry;
+        else window.plzStatusData[plz3].push(entry);
+      });
+      updateStatusCount();
       aktiviereStatusUndResetSelection(status);
       msg.style.color = '#27ae60';
       msg.textContent = plzList.length + ' Gebiete als ' + status + ' markiert.';
+      loadPlzStatus();
+      loadContacts();
     } else {
       msg.style.color = '#e74c3c';
       msg.textContent = result.error || 'Fehler.';
@@ -1250,6 +1281,18 @@ function renderContactList(contacts) {
     list.innerHTML = '<div style="color:#999;font-size:11px;padding:6px 0;">Keine Kontakte vorhanden.</div>';
     return;
   }
+  // Per-Status-Zähler aus window.plzStatusData berechnen
+  var csc = {};
+  Object.keys(window.plzStatusData || {}).forEach(function(plz3) {
+    (window.plzStatusData[plz3] || []).forEach(function(e) {
+      var cid = String(e.contact_id);
+      if (!csc[cid]) csc[cid] = {w:0,b:0,r:0};
+      if (e.status === 'wunsch') csc[cid].w++;
+      else if (e.status === 'belegt') csc[cid].b++;
+      else if (e.status === 'reserviert') csc[cid].r++;
+    });
+  });
+
   list.innerHTML = contacts.map(function(c) {
     var isInt   = c.kontakt_typ === 'interessent';
     var ktBg    = isInt ? '#e67e22' : '#27ae60';
@@ -1270,7 +1313,16 @@ function renderContactList(contacts) {
       branchBadge = '<span style="background:' + parsed.branchDef.color + ';color:' + parsed.branchDef.tc + ';border-radius:3px;padding:1px 4px;font-size:8px;font-weight:bold;white-space:nowrap;">' + esc(blLabel) + '</span>';
     }
 
-    var cnt = c.plz_count || 0;
+    var sc = csc[String(c.id)] || {w:0,b:0,r:0};
+    var countHtml = '<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;align-items:flex-end;">';
+    if (sc.w || sc.b || sc.r) {
+      if (sc.w) countHtml += '<span style="background:#b7950b;color:#fff;border-radius:2px;padding:0 4px;font-size:8px;font-weight:bold;line-height:1.5;white-space:nowrap;">W:' + sc.w + '</span>';
+      if (sc.b) countHtml += '<span style="background:#1e8449;color:#fff;border-radius:2px;padding:0 4px;font-size:8px;font-weight:bold;line-height:1.5;white-space:nowrap;">B:' + sc.b + '</span>';
+      if (sc.r) countHtml += '<span style="background:#e67e22;color:#fff;border-radius:2px;padding:0 4px;font-size:8px;font-weight:bold;line-height:1.5;white-space:nowrap;">R:' + sc.r + '</span>';
+    } else {
+      countHtml += '<span class="ct-plz-count">0</span>';
+    }
+    countHtml += '</div>';
 
     var editBtn = '<button onclick="event.stopPropagation();editContact(' + JSON.stringify(c.id) + ')" title="Bearbeiten" ' +
       'style="flex-shrink:0;width:auto;margin-top:0;background:#6b42a0;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:bold;cursor:pointer;line-height:1.5;">B</button>';
@@ -1291,11 +1343,19 @@ function renderContactList(contacts) {
         '<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap;">' + typBadge + branchBadge + '</div>' +
       '</div>' +
       editBtn +
-      '<span class="ct-plz-count">' + cnt + '</span>' +
+      countHtml +
       convertBtn +
       delContactBtn +
     '</div>';
   }).join('');
+}
+
+function toggleSection(id, btn) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  var hidden = el.style.display === 'none';
+  el.style.display = hidden ? '' : 'none';
+  if (btn) btn.textContent = hidden ? '▾' : '▸';
 }
 
 function editContact(id) {

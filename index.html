@@ -80,25 +80,31 @@
   <div class="s">
     <div class="tr" style="margin-bottom:4px;">
       <h3 style="margin:0;">KUNDEN IMPORTIEREN</h3>
+      <button onclick="toggleSection('kiBody',this)" style="width:auto;margin:0;background:none;border:none;color:#642d7b;cursor:pointer;font-size:15px;padding:0 2px;line-height:1;">▸</button>
     </div>
-    <div style="font-size:10px;color:#888;margin-bottom:6px;">Terminkönig-Export (XLS/XLSX) → Kunden + PLZ anlegen</div>
-    <input type="file" id="kiFile" accept=".xls,.xlsx" onchange="kiPreview()" style="font-size:11px;width:100%;box-sizing:border-box;margin-bottom:4px;">
-    <div id="kiPreviewBox" style="display:none;background:#f8f4fc;border:1px solid #c8a8dc;border-radius:3px;padding:5px 7px;font-size:11px;margin-bottom:6px;line-height:1.6;"></div>
-    <button class="bb" id="kiImportBtn" onclick="kiImport()" style="display:none;margin:0;font-size:11px;">Kunden anlegen &amp; importieren</button>
-    <div id="kiMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
+    <div id="kiBody" style="display:none;">
+      <div style="font-size:10px;color:#888;margin-bottom:6px;">Terminkönig-Export (XLS/XLSX) → Kunden + PLZ anlegen</div>
+      <input type="file" id="kiFile" accept=".xls,.xlsx" onchange="kiPreview()" style="font-size:11px;width:100%;box-sizing:border-box;margin-bottom:4px;">
+      <div id="kiPreviewBox" style="display:none;background:#f8f4fc;border:1px solid #c8a8dc;border-radius:3px;padding:5px 7px;font-size:11px;margin-bottom:6px;line-height:1.6;"></div>
+      <button class="bb" id="kiImportBtn" onclick="kiImport()" style="display:none;margin:0;font-size:11px;">Kunden anlegen &amp; importieren</button>
+      <div id="kiMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
+    </div>
   </div>
 
   <!-- PLZ-Import (nur Admin, wird per JS eingeblendet) -->
   <div class="s" id="lpPlzImport" style="display:none;">
     <div class="tr" style="margin-bottom:6px;">
       <h3 style="margin:0;">PLZ-IMPORT</h3>
+      <button onclick="toggleSection('lpImportBody',this)" style="width:auto;margin:0;background:none;border:none;color:#642d7b;cursor:pointer;font-size:15px;padding:0 2px;line-height:1;">▸</button>
     </div>
-    <div style="font-size:10px;color:#888;margin-bottom:6px;">JSON aus Google Sheets exportJson()</div>
-    <label for="lpImportFile" style="font-size:11px;display:block;margin-bottom:3px;">Datei wählen:</label>
-    <input type="file" id="lpImportFile" accept=".json" style="font-size:11px;margin-bottom:6px;width:100%;box-sizing:border-box;">
-    <button class="bb" onclick="startPlzImport()" id="lpImportBtn" style="margin-bottom:4px;">Import starten</button>
-    <div id="lpImportMsg" style="font-size:10px;min-height:12px;color:#642d7b;margin-bottom:4px;white-space:pre-wrap;"></div>
-    <div id="lpImportResult" style="font-size:11px;"></div>
+    <div id="lpImportBody" style="display:none;">
+      <div style="font-size:10px;color:#888;margin-bottom:6px;">JSON aus Google Sheets exportJson()</div>
+      <label for="lpImportFile" style="font-size:11px;display:block;margin-bottom:3px;">Datei wählen:</label>
+      <input type="file" id="lpImportFile" accept=".json" style="font-size:11px;margin-bottom:6px;width:100%;box-sizing:border-box;">
+      <button class="bb" onclick="startPlzImport()" id="lpImportBtn" style="margin-bottom:4px;">Import starten</button>
+      <div id="lpImportMsg" style="font-size:10px;min-height:12px;color:#642d7b;margin-bottom:4px;white-space:pre-wrap;"></div>
+      <div id="lpImportResult" style="font-size:11px;"></div>
+    </div>
   </div>
 
   <!-- Datensicherung (nur Admin, wird per JS eingeblendet) -->
@@ -573,6 +579,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=9"></script>
-<script src="admin.js?v=28"></script>
+<script src="admin.js?v=29"></script>
 </body>
 </html>
