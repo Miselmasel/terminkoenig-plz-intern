@@ -217,8 +217,11 @@ function toggleBelegtLayer() {
   if (btn) {
     btn.textContent = window.hideBelegt ? 'Belegt: ein' : 'Belegt: aus';
     btn.className   = window.hideBelegt ? 'bb' : 'bk';
-    btn.style.cssText = 'width:auto;margin:0;padding:3px 8px;font-size:11px;';
+    btn.style.cssText = 'width:auto;margin:0 0 0 4px;padding:3px 8px;font-size:11px;';
   }
+  document.querySelectorAll('.ld-belegt').forEach(function(el) {
+    el.style.display = window.hideBelegt ? 'none' : '';
+  });
   if (typeof refreshAll === 'function') refreshAll();
 }
 

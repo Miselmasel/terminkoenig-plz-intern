@@ -145,13 +145,13 @@
       <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Wünsche: aus</button>
       <button id="belegtToggleBtn" class="bk" onclick="toggleBelegtLayer()" style="width:auto;margin:0 0 0 4px;padding:3px 8px;font-size:11px;">Belegt: aus</button>
     </div>
-    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px 6px;">
-      <div class="lr"><span class="ld" style="background:#1e8449"></span> Belegt BBM</div>
-      <div class="lr"><span class="ld" style="background:#e74c3c"></span> BL &gt;70%</div>
-      <div class="lr"><span class="ld" style="background:#e67e22"></span> BL 30–70%</div>
-      <div class="lr"><span class="ld" style="background:#5dade2"></span> BL &lt;30%</div>
-      <div class="lr"><span class="ld" style="background:#e67e22"></span> Reserviert</div>
-      <div class="lr"><span class="ld" style="background:#c8a200;opacity:.6;"></span> Wunsch</div>
+    <div style="display:flex;gap:5px;align-items:center;flex-wrap:nowrap;margin-bottom:2px;">
+      <span class="ld ld-belegt" style="background:#1e8449" title="Belegt BBM"></span>
+      <span class="ld" style="background:#e74c3c" title="BL &gt;70%"></span>
+      <span class="ld" style="background:#e67e22" title="BL 30–70%"></span>
+      <span class="ld" style="background:#5dade2" title="BL &lt;30%"></span>
+      <span class="ld" style="background:#e67e22" title="Reserviert"></span>
+      <span class="ld" style="background:#c8a200;opacity:.6;" title="Wunsch"></span>
     </div>
     <div style="display:flex;gap:6px;margin-top:5px;align-items:center;flex-wrap:wrap;">
       <span style="font-size:10px;color:var(--clr-muted);">Layer:</span>
