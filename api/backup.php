@@ -3,7 +3,7 @@ require_once __DIR__ . '/db.php';
 
 define('APP_VERSION', '0.09 beta');
 define('BACKUP_DIR',  __DIR__ . '/../backups/');
-define('MAX_BACKUPS', 4);
+define('MAX_BACKUPS', 30);
 
 // Cron-Zugriff via Secret-Parameter, sonst Admin-Session
 $isCron  = defined('CRON_SECRET') && ($_GET['cron_secret'] ?? '') === CRON_SECRET && CRON_SECRET !== '';

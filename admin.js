@@ -2035,27 +2035,29 @@ async function deleteDocument(id) {
 
 // ─── Datensicherung ───────────────────────────────────────────────
 async function loadBackups() {
-  var list = document.getElementById('lpBackupList');
-  if (!list) return;
+  var sel = document.getElementById('lpBackupSelect');
+  if (!sel) return;
   try {
     var res  = await fetch('api/backup.php?action=list');
     var data = await res.json();
     if (!Array.isArray(data) || !data.length) {
-      list.innerHTML = '<div style="color:#aaa;font-size:10px;">Keine Sicherungen vorhanden</div>';
+      sel.innerHTML = '<option value="">Keine Sicherungen vorhanden</option>';
       return;
     }
-    list.innerHTML = data.map(function(b) {
-      var kb = (b.size / 1024).toFixed(1);
-      return '<div style="border:1px solid #e4d4ec;border-radius:4px;padding:6px 8px;margin-bottom:5px;background:#fff;">' +
-        '<div style="font-size:10px;color:#642d7b;font-weight:bold;margin-bottom:2px;">' + b.label + '</div>' +
-        '<div style="font-size:9px;color:#bbb;margin-bottom:5px;">' + kb + ' KB</div>' +
-        '<button class="br" onclick="restoreBackup(\'' + b.file.replace(/'/g, '') + '\',\'' + b.label.replace(/'/g, '') + '\')" ' +
-        'style="width:100%;margin:0;padding:3px;font-size:10px;">&#x21BA; Wiederherstellen</button>' +
-        '</div>';
-    }).join('');
+    sel.innerHTML = '<option value="">– Sicherung wählen –</option>' +
+      data.map(function(b) {
+        var kb = (b.size / 1024).toFixed(1);
+        return '<option value="' + b.file.replace(/"/g, '&quot;') + '">' + b.label + ' (' + kb + ' KB)</option>';
+      }).join('');
   } catch(e) {
-    list.innerHTML = '<div style="color:#e74c3c;font-size:10px;">Fehler beim Laden der Sicherungen</div>';
+    sel.innerHTML = '<option value="">Fehler beim Laden</option>';
   }
+}
+
+function restoreSelectedBackup() {
+  var sel = document.getElementById('lpBackupSelect');
+  if (!sel || !sel.value) { alert('Bitte zuerst eine Sicherung auswählen.'); return; }
+  restoreBackup(sel.value, sel.options[sel.selectedIndex].text);
 }
 
 async function createBackup() {
