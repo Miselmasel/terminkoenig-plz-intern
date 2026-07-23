@@ -33,6 +33,9 @@ if ($method === 'POST') {
 
 if ($method === 'PUT' && $id) {
     $d = json_decode(file_get_contents('php://input'), true);
+    if ($id === intval($_SESSION['user_id'] ?? 0) && ($d['role'] ?? '') !== 'admin') {
+        jsonOut(['error' => 'Eigene Admin-Rechte können nicht entfernt werden'], 400);
+    }
     if (!empty($d['password'])) {
         $hash = password_hash($d['password'], PASSWORD_BCRYPT);
         $stmt = getDB()->prepare('UPDATE users SET name=?, email=?, role=?, password_hash=? WHERE id=?');

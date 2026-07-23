@@ -47,6 +47,7 @@
   <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
     <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
     <div style="display:flex;gap:4px;">
+      <button class="bk" id="lpPanelSwitch" onclick="location.href='index.html'" style="display:none;width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Zum Admin-Panel wechseln">⚙ Admin</button>
       <button class="bk" onclick="openChangePassword()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Passwort ändern">🔑</button>
       <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
     </div>
@@ -491,18 +492,23 @@
 
 <script>window.holidayMapStyle = { fillColor: "#2471a3", fillOpacity: 0.55, color: "#1a5276", weight: 1.5 };</script>
 <script src="script.js?v=11"></script>
-<script src="admin.js?v=30"></script>
+<script src="admin.js?v=32"></script>
 <script>
-// User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet
+// User-Ansicht: keine Admin-Sektionen. Admins dürfen die Ansicht sehen
+// und bekommen einen Switch-Button zurück zum Admin-Panel.
 checkLogin = async function() {
   try {
     var res  = await fetch('api/auth.php?action=me');
     var data = await res.json();
     if (!data.ok) { location.href = 'login.html'; return; }
-    window.currentUserRole = data.role;
-    if (data.role === 'admin') { location.href = 'index.html'; return; }
+    window.currentUserRole  = data.role;
+    window.currentUserEmail = data.email || '';
     var el = document.getElementById('lpUserName');
     if (el) el.textContent = data.name || data.email;
+    if (data.role === 'admin') {
+      var sw = document.getElementById('lpPanelSwitch');
+      if (sw) sw.style.display = '';
+    }
   } catch(e) { location.href = 'login.html'; }
 };
 </script>

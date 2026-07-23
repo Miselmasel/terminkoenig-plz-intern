@@ -141,6 +141,7 @@
   <div class="s" style="display:flex;align-items:center;justify-content:space-between;gap:6px;">
     <span style="font-size:11px;color:#555;">Angemeldet: <strong id="lpUserName">…</strong></span>
     <div style="display:flex;gap:4px;">
+      <button class="bk" id="lpPanelSwitch" onclick="location.href='user.html'" style="display:none;width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Zum User-Panel wechseln">👤 User</button>
       <button class="bk" onclick="openChangePassword()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Passwort ändern">🔑</button>
       <button class="bk" id="lpThemeBtn" onclick="toggleTheme()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;" title="Dark Mode">🌙</button>
       <button class="br" onclick="doLogout()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;white-space:nowrap;">Abmelden</button>
@@ -582,6 +583,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=11"></script>
-<script src="admin.js?v=31"></script>
+<script src="admin.js?v=32"></script>
 </body>
 </html>

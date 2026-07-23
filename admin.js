@@ -88,7 +88,8 @@ async function checkLogin() {
     var res  = await fetch('api/auth.php?action=me');
     var data = await res.json();
     if (!data.ok) { location.href = 'login.html'; return; }
-    window.currentUserRole = data.role;
+    window.currentUserRole  = data.role;
+    window.currentUserEmail = data.email || '';
     var el = document.getElementById('lpUserName');
     if (el) el.textContent = data.name || data.email;
     if (data.role === 'admin') {
@@ -98,6 +99,8 @@ async function checkLogin() {
       if (bm) { bm.style.display = ''; loadBackups(); }
       var im = document.getElementById('lpPlzImport');
       if (im) { im.style.display = ''; }
+      var sw = document.getElementById('lpPanelSwitch');
+      if (sw) sw.style.display = '';
     }
   } catch(e) { location.href = 'login.html'; }
 }
@@ -1854,6 +1857,17 @@ function renderUserList() {
     var adminBadge = u.role === 'admin'
       ? '<span style="background:#642d7b;color:#fff;border-radius:2px;padding:1px 4px;font-size:9px;margin-left:4px;">Admin</span>'
       : '';
+    var isSelf = u.email && u.email === window.currentUserEmail;
+    var roleBtn = '';
+    if (u.role !== 'admin') {
+      roleBtn = '<button onclick="changeUserRole(' + u.id + ',\'admin\')" title="Zum Admin befördern" ' +
+        'style="flex-shrink:0;width:auto;background:#642d7b;color:#fff;border:none;border-radius:3px;' +
+        'padding:2px 6px;font-size:10px;cursor:pointer;line-height:1.5;white-space:nowrap;">↑ Admin</button>';
+    } else if (!isSelf) {
+      roleBtn = '<button onclick="changeUserRole(' + u.id + ',\'user\')" title="Admin-Rechte entziehen" ' +
+        'style="flex-shrink:0;width:auto;background:#7f8c8d;color:#fff;border:none;border-radius:3px;' +
+        'padding:2px 6px;font-size:10px;cursor:pointer;line-height:1.5;white-space:nowrap;">↓ User</button>';
+    }
     var delBtn = u.role !== 'admin'
       ? '<button onclick="deleteUserConfirm(' + u.id + ')" title="Löschen" ' +
         'style="flex-shrink:0;width:auto;background:#c0392b;color:#fff;border:none;border-radius:3px;' +
@@ -1867,9 +1881,31 @@ function renderUserList() {
         (u.name ? '<div style="color:#888;font-size:10px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">' + esc(u.email) + '</div>' : '') +
         statusHtml +
       '</div>' +
+      roleBtn +
       delBtn +
     '</div>';
   }).join('');
+}
+
+async function changeUserRole(id, newRole) {
+  var u = allUsers.find(function(x) { return String(x.id) === String(id); });
+  if (!u) return;
+  var frage = newRole === 'admin'
+    ? '"' + (u.name || u.email) + '" zum Admin befördern?\n\nAdmins haben vollen Zugriff auf Benutzer, Sicherungen und Import.'
+    : '"' + (u.name || u.email) + '" die Admin-Rechte entziehen?';
+  if (!confirm(frage)) return;
+  try {
+    var res = await fetch('api/users.php?id=' + id, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ name: u.name || '', email: u.email || '', role: newRole })
+    });
+    var data = await res.json();
+    if (data.ok) loadUsers();
+    else alert(data.error || 'Fehler beim Ändern der Rolle');
+  } catch(e) {
+    alert('Server nicht erreichbar');
+  }
 }
 
 function openInviteUser() {
