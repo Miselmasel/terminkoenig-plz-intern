@@ -433,6 +433,16 @@ function rebuildSelLayer() {
     interactive: false,
     renderer: svgSelRenderer
   }).addTo(map);
+  // An gemeinsamen Grenzkanten übermalt die zuletzt gezeichnete Umrandung die
+  // darunterliegende – daher nach Status-Priorität nach oben holen, damit
+  // Belegt (dunkelblau) nie von Wunsch (türkis) überdeckt wird.
+  geoLSel.eachLayer(function(l) {
+    var st = selContact[l.feature.properties.plz];
+    if (st === 'reserviert') l.bringToFront();
+  });
+  geoLSel.eachLayer(function(l) {
+    if (selContact[l.feature.properties.plz] === 'belegt') l.bringToFront();
+  });
 }
 
 // Pattern-Defs in den Leaflet-SVG injizieren (url(#id) funktioniert nur im selben <svg>).
