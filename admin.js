@@ -1505,6 +1505,19 @@ function openContactForm(contact) {
     }
   }
 
+  var slSection = document.getElementById('cmShortlinkSection');
+  if (slSection) {
+    if (contact && contact.id) {
+      slSection.style.display = '';
+      var slBtn = document.getElementById('cmShortlinkBtn');
+      if (slBtn) { slBtn.textContent = 'Link generieren'; slBtn.disabled = false; }
+      var slResult = document.getElementById('cmShortlinkResult');
+      if (slResult) slResult.style.display = 'none';
+    } else {
+      slSection.style.display = 'none';
+    }
+  }
+
   var docsSection = document.getElementById('cmDocsSection');
   if (docsSection) {
     var cmDocFile = document.getElementById('cmDocFile');
@@ -1529,6 +1542,75 @@ function closeContactForm() {
   document.getElementById('contactModal').style.display = 'none';
   currentContactId = null;
   clearContactPLZ();
+}
+
+async function generateShortlink() {
+  var contact = currentContactId !== null
+    ? allContacts.find(function(c) { return String(c.id) === String(currentContactId); })
+    : null;
+  if (!contact) return;
+
+  var btn = document.getElementById('cmShortlinkBtn');
+  var resultEl = document.getElementById('cmShortlinkResult');
+  var urlEl = document.getElementById('cmShortlinkUrl');
+  if (btn) { btn.disabled = true; btn.textContent = 'Wird generiert…'; }
+
+  var gebiete = [];
+  if (window.plzStatusData) {
+    Object.keys(window.plzStatusData).forEach(function(plz3) {
+      var entries = window.plzStatusData[plz3];
+      if (Array.isArray(entries) && entries.some(function(e) {
+        return String(e.contact_id) === String(contact.id);
+      })) {
+        gebiete.push(plz3);
+      }
+    });
+  }
+
+  var parts = (contact.suchbegriff || '').trim().split(/\s+/);
+  var payload = {
+    typ: contact.kundennummer ? 'kunde' : 'interessent',
+    vorname: parts[0] || '',
+    nachname: parts.slice(1).join(' ') || '',
+    kundennummer: contact.kundennummer || '',
+    vertragsnummer: contact.vertragsnummer || '',
+    eigenePlz: contact.eigene_plz || '',
+    gebiete: gebiete
+  };
+
+  try {
+    var resp = await fetch('https://terminkoenig.plz-vertriebsplaner.de/link.php', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    });
+    var data = await resp.json();
+    if (!data.ok) throw new Error(data.error || 'Fehler');
+    var url = 'https://terminkoenig.plz-vertriebsplaner.de/?c=' + data.token;
+    if (urlEl) urlEl.textContent = url;
+    if (resultEl) resultEl.style.display = '';
+    if (btn) { btn.textContent = 'Neu generieren'; btn.disabled = false; }
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(url).then(function() {
+        if (btn) btn.textContent = 'In Zwischenablage ✓';
+        setTimeout(function() { if (btn) btn.textContent = 'Neu generieren'; }, 2000);
+      }).catch(function() {});
+    }
+  } catch(e) {
+    if (btn) { btn.textContent = 'Link generieren'; btn.disabled = false; }
+    alert('Fehler beim Generieren: ' + e.message);
+  }
+}
+
+function copyShortlink() {
+  var urlEl = document.getElementById('cmShortlinkUrl');
+  if (!urlEl || !urlEl.textContent) return;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(urlEl.textContent).then(function() {
+      urlEl.style.background = '#d5f5e3';
+      setTimeout(function() { urlEl.style.background = '#f5edfb'; }, 1200);
+    }).catch(function() {});
+  }
 }
 
 async function saveContact() {
