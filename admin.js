@@ -1411,11 +1411,17 @@ function highlightContactPLZ(contactId) {
   _highlightedContactId = contactId;
   selContact = {};
   var data = window.plzStatusData || {};
+  // Status mitspeichern, damit die Karte Wunsch/Reserviert/Belegt des
+  // Kontakts unterschiedlich einfärben kann (belegt > reserviert > wunsch)
+  var prio = { belegt: 3, reserviert: 2, wunsch: 1 };
   Object.keys(data).forEach(function(plz3) {
     var entries = data[plz3];
-    if (Array.isArray(entries) && entries.some(function(e) { return String(e.contact_id) === String(contactId); })) {
-      selContact[plz3] = true;
-    }
+    if (!Array.isArray(entries)) return;
+    entries.forEach(function(e) {
+      if (String(e.contact_id) !== String(contactId)) return;
+      var cur = selContact[plz3];
+      if (!cur || (prio[e.status] || 0) > (prio[cur] || 0)) selContact[plz3] = e.status;
+    });
   });
   // Auto-fill Zuweisen search with selected contact
   var c = (allContacts || []).find(function(x) { return String(x.id) === String(contactId); });

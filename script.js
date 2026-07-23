@@ -142,6 +142,9 @@ function styleFeaturePremium(feature) {
 function styleFeature(feature) {
   var plz3 = feature.properties.plz;
   if (selContact[plz3]) {
+    // Kontakt-Hervorhebung: Wunsch türkis, Reserviert hellblau, Belegt dunkelblau
+    if (selContact[plz3] === 'belegt')     return { fillColor: "#2e86c1", fillOpacity: 0.65, color: "#1a5276", weight: 2.5 };
+    if (selContact[plz3] === 'reserviert') return { fillColor: "#5dade2", fillOpacity: 0.55, color: "#21618c", weight: 2 };
     return { fillColor: "#17a589", fillOpacity: 0.60, color: "#117a65", weight: 2.5 };
   }
   if (selHol[plz3]) {
@@ -372,7 +375,12 @@ function refreshLayer(plz3) {
 
 function styleSelection(feature) {
   var plz3 = feature.properties.plz;
-  if (selContact[plz3]) return { fill: false, color: '#17a589', weight: 3, opacity: 1 };
+  if (selContact[plz3]) {
+    var selCol = selContact[plz3] === 'belegt' ? '#1a5276'
+               : selContact[plz3] === 'reserviert' ? '#21618c'
+               : '#17a589';
+    return { fill: false, color: selCol, weight: 3, opacity: 1 };
+  }
   if (sel[plz3])        return { fill: false, color: '#642d7b', weight: 3, opacity: 1 };
   return { fill: false, color: 'transparent', weight: 0, opacity: 0 };
 }
