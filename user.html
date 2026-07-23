@@ -437,6 +437,10 @@
     </div>
       <div id="cmShortlinkSection" style="display:none;margin-bottom:4px;">
         <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:4px;">Individuallink</div>
+        <div style="display:flex;gap:4px;margin-bottom:5px;">
+          <input type="text" id="cmShortlinkNachname" placeholder="Nachname" style="flex:1;min-width:0;margin:0;font-size:11px;padding:3px 5px;border:1px solid #ccc;border-radius:3px;">
+          <input type="text" id="cmShortlinkVorname" placeholder="Vorname" style="flex:1;min-width:0;margin:0;font-size:11px;padding:3px 5px;border:1px solid #ccc;border-radius:3px;">
+        </div>
         <label style="display:flex;align-items:center;gap:5px;font-size:11px;margin-bottom:5px;cursor:pointer;">
           <input type="checkbox" id="cmShortlinkGebiete" checked style="width:auto;margin:0;">
           Bestehende Gebiete vorab markieren
@@ -504,7 +508,7 @@
 
 <script>window.holidayMapStyle = { fillColor: "#2471a3", fillOpacity: 0.55, color: "#1a5276", weight: 1.5 };</script>
 <script src="script.js?v=4"></script>
-<script src="admin.js?v=12"></script>
+<script src="admin.js?v=13"></script>
 <script>
 // User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet
 checkLogin = async function() {

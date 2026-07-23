@@ -1519,6 +1519,11 @@ function openContactForm(contact) {
       if (slResult) slResult.style.display = 'none';
       var slCb = document.getElementById('cmShortlinkGebiete');
       if (slCb) slCb.checked = true;
+      var sbParts = (contact.suchbegriff || '').trim().split('_');
+      var nachEl = document.getElementById('cmShortlinkNachname');
+      var vorEl  = document.getElementById('cmShortlinkVorname');
+      if (nachEl) nachEl.value = sbParts[0] || '';
+      if (vorEl)  vorEl.value  = sbParts[1] || '';
       loadContactLinks(contact.id);
     } else {
       slSection.style.display = 'none';
@@ -1588,12 +1593,14 @@ async function generateShortlink() {
     });
   }
 
-  var parts = (contact.suchbegriff || '').trim().split(/\s+/);
+  var sbParts  = (contact.suchbegriff || '').trim().split('_');
+  var nachEl   = document.getElementById('cmShortlinkNachname');
+  var vorEl    = document.getElementById('cmShortlinkVorname');
   var payload = {
     _contact_id: contact.id,
     typ: contact.kundennummer ? 'kunde' : 'interessent',
-    vorname: parts[0] || '',
-    nachname: parts.slice(1).join(' ') || '',
+    nachname: (nachEl && nachEl.value.trim()) || sbParts[0] || '',
+    vorname:  (vorEl  && vorEl.value.trim())  || sbParts[1] || '',
     kundennummer: contact.kundennummer || '',
     vertragsnummer: contact.vertragsnummer || '',
     eigenePlz: contact.eigene_plz || '',
@@ -1653,9 +1660,10 @@ async function loadContactLinks(contactId) {
       var url = 'https://terminkoenig.plz-vertriebsplaner.de/?c=' + link.token;
       var d = link.created ? new Date(link.created * 1000).toLocaleDateString('de-DE') : '?';
       var versions = link.versions || [];
-      html += '<div style="background:#faf7fc;border:1px solid #e4d4ec;border-radius:3px;padding:5px 7px;margin-bottom:5px;">';
+      var isExpired = !!link.expired;
+      html += '<div style="background:' + (isExpired ? '#f9f9f9' : '#faf7fc') + ';border:1px solid ' + (isExpired ? '#ddd' : '#e4d4ec') + ';border-radius:3px;padding:5px 7px;margin-bottom:5px;">';
       html += '<div style="display:flex;align-items:center;gap:4px;justify-content:space-between;margin-bottom:3px;">';
-      html += '<span style="font-size:10px;color:#aaa;">Link ' + (li + 1) + ' · ' + d + (link.gebiete && link.gebiete.length ? ' · ' + link.gebiete.length + ' Gebiete' : '') + '</span>';
+      html += '<span style="font-size:10px;color:#aaa;">Link ' + (li + 1) + ' · ' + d + (link.gebiete && link.gebiete.length ? ' · ' + link.gebiete.length + ' Gebiete' : '') + (isExpired ? ' · <span style="color:#e74c3c;">abgelaufen</span>' : '') + '</span>';
       html += '<button onclick="copyShortlinkUrl(\'' + url + '\')" style="font-size:9px;width:auto;margin:0;padding:1px 6px;background:#e4d4ec;color:#642d7b;border:none;border-radius:2px;cursor:pointer;">Kopieren</button>';
       html += '</div>';
       if (!versions.length) {
