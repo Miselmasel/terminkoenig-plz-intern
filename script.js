@@ -46,6 +46,18 @@ fetch('data/plz3_businesses.json')
   .then(function(r) { return r.json(); })
   .then(function(d) { plzBusinesses = d; })
   .catch(function(e) { console.warn('Betriebsdaten nicht geladen:', e); });
+var TK_KORREKTUREN = {
+  '193':0.504,'267':0.306,'308':0.250,
+  '664':0.583,'701':0.361,'288':0.195,
+  '809':0.182,'382':0.135,'905':0.129,
+  '200':0.122,'659':0.076
+};
+function tkEst(plz3) {
+  var b = plzBusinesses[plz3];
+  if (!b || !b.est) return 0;
+  var f = TK_KORREKTUREN[plz3] || (b.rate === 36 ? 0.35 : 0.22);
+  return Math.round(b.est * f);
+}
 var plzDB = null;
 fetch('https://raw.githubusercontent.com/Miselmasel/PLZ-Datenbank/main/webtools/plz-umkreissuche/data/plz_umkreisdaten.json')
   .then(function(r){return r.json();})
@@ -184,9 +196,9 @@ function onEachFeature(feature, layer) {
   plzPolygons[plz3] = pts;
   layer.bindTooltip(function(l) {
     var p = l.feature.properties.plz;
-    var b = plzBusinesses[p];
     var txt = '<strong>' + p + 'xx</strong>';
-    if (b && b.est) txt += '<br><small>ca. ' + b.est.toLocaleString('de-DE') + ' Betriebe</small>';
+    var _est = tkEst(p);
+    if (_est > 0) txt += '<br><small>ca. ' + _est.toLocaleString('de-DE') + ' Betriebe</small>';
     var entries = window.plzStatusData && window.plzStatusData[p];
     if (entries && entries.length) {
       var belegtList = [], reserviertE = null, wunschList = [];
@@ -413,7 +425,7 @@ function updateSidebar() {
   var acEl = document.getElementById("ac");
   if (acEl) acEl.querySelector("span:nth-child(2)").textContent = keys.length;
   var totalBetriebe = 0;
-  keys.forEach(function(p) { if (plzBusinesses[p]) totalBetriebe += plzBusinesses[p].est; });
+  keys.forEach(function(p) { totalBetriebe += tkEst(p); });
   var betrEl = document.getElementById("totalBetriebe");
   if (betrEl) betrEl.textContent = totalBetriebe > 0 ? "ca. " + totalBetriebe.toLocaleString("de-DE") + " Betriebe" : "";
   var al = document.getElementById("al");
@@ -421,28 +433,63 @@ function updateSidebar() {
     al.innerHTML = "";
     keys.forEach(function (p) {
       var d = document.createElement("div");
-      d.style.cssText =
-        "display:flex;align-items:center;gap:4px;cursor:pointer;font-size:12px;margin:2px 0";
-      var sp = document.createElement("span");
-      sp.className = "ld";
-      sp.style.background = SEL_COLOR;
-      var tx = document.createElement("span");
-      tx.textContent = p + "xx";
-      d.appendChild(sp);
-      d.appendChild(tx);
-      d.onclick = function () {
-        zenOn(p);
-      };
+      d.style.cssText = "cursor:pointer;font-size:11px;padding:2px 3px;background:#f0eaf8;border-radius:2px;text-align:center;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;";
+      d.textContent = p + "xx";
+      d.title = p + "xx";
+      d.onclick = function () { zenOn(p); };
       al.appendChild(d);
     });
   }
   var ta = document.getElementById("ta");
-  if (ta)
-    ta.textContent = keys
-      .map(function (p) {
-        return p + "xx";
-      })
-      .join(", ");
+  if (ta) ta.textContent = keys.map(function(p) { return p + "xx"; }).join(", ");
+
+  // PLZ-Details: alle 5-stelligen PLZ mit Ort + Luftlinie
+  var detailSection = document.getElementById('plzDetailSection');
+  var detailEl = document.getElementById('plzDetail');
+  if (detailEl) {
+    if (keys.length === 0 || !plzDB) {
+      if (detailSection) detailSection.style.display = 'none';
+      detailEl.innerHTML = '';
+    } else {
+      if (detailSection) detailSection.style.display = '';
+      var epEl = document.getElementById('fmEigenePlz');
+      var epVal = epEl ? epEl.value.replace(/\D/g,'').substring(0,5) : '';
+      var epRef = null;
+      if (epVal.length === 5) {
+        var epEntry = plzDB.filter(function(e){ return e.plz === epVal; })[0];
+        if (epEntry) epRef = epEntry;
+      }
+      var prefixSet = {};
+      keys.forEach(function(k){ prefixSet[k] = true; });
+      var rows = [];
+      plzDB.forEach(function(e) {
+        if (prefixSet[e.plz.substring(0,3)]) {
+          rows.push({ plz: e.plz, ort: e.ort || '',
+            dist: epRef ? Math.round(haversine(epRef.lat, epRef.lon, e.lat, e.lon)) : null });
+        }
+      });
+      rows.sort(function(a,b){
+        if (a.dist !== null && b.dist !== null) return a.dist - b.dist;
+        return a.plz < b.plz ? -1 : 1;
+      });
+      var showDist = epRef !== null;
+      var html = '<table style="width:100%;border-collapse:collapse;">' +
+        '<thead><tr style="position:sticky;top:0;background:#f0eaf8;">' +
+        '<th style="text-align:left;padding:2px 4px;font-size:10px;font-weight:bold;color:#642d7b;white-space:nowrap;">PLZ</th>' +
+        '<th style="text-align:left;padding:2px 4px;font-size:10px;font-weight:bold;color:#642d7b;">Ort</th>' +
+        (showDist ? '<th style="text-align:right;padding:2px 4px;font-size:10px;font-weight:bold;color:#642d7b;white-space:nowrap;">Luftlinie</th>' : '') +
+        '</tr></thead><tbody>';
+      rows.forEach(function(r) {
+        html += '<tr style="border-bottom:1px solid #f5f0fa;">' +
+          '<td style="padding:1px 4px;font-size:11px;font-family:monospace;">' + r.plz + '</td>' +
+          '<td style="padding:1px 4px;font-size:11px;">' + r.ort + '</td>' +
+          (showDist ? '<td style="padding:1px 4px;font-size:11px;text-align:right;color:#642d7b;">' + r.dist + '&thinsp;km</td>' : '') +
+          '</tr>';
+      });
+      html += '</tbody></table>';
+      detailEl.innerHTML = html;
+    }
+  }
 }
 
 function zen() {
@@ -607,7 +654,7 @@ function exportCSV() {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
-    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est : '';
+    var betr = tkEst(prefix) || '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
@@ -1143,7 +1190,7 @@ function buildEmailCSVTable(eigenePlzRef) {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkCell = pk ? '<span style="background:' + pkColors[pk] + ';color:#fff;padding:1px 5px;border-radius:3px;font-size:10px;white-space:nowrap;">' + pkFull[pk] + '</span>' : '';
-    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est.toLocaleString('de-DE') : '–';
+    var _be = tkEst(prefix); var betr = _be > 0 ? _be.toLocaleString('de-DE') : '–';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
@@ -1403,7 +1450,7 @@ function buildEmailCSVString(eigenePlzRef) {
   keys.forEach(function(prefix) {
     var pk = PREISKLASSEN[prefix.substring(0, 2)] || '';
     var pkLabel = pkName[pk] || 'Unbekannt';
-    var betr = (plzBusinesses[prefix] && plzBusinesses[prefix].est) ? plzBusinesses[prefix].est : '';
+    var betr = tkEst(prefix) || '';
     if (plzDB) {
       var matches = plzDB.filter(function(e){return e.plz.substring(0,3)===prefix;});
       if (matches.length === 0) {
@@ -1535,7 +1582,7 @@ function submitFormular() {
       btn.textContent = 'Wird gesendet…';
       var imgData = canvas.toDataURL('image/jpeg', 0.75);
       var betriebeTotal = 0;
-      Object.keys(sel).forEach(function(p) { if (plzBusinesses[p]) betriebeTotal += plzBusinesses[p].est; });
+      Object.keys(sel).forEach(function(p) { betriebeTotal += tkEst(p); });
       var payload = {
         emailSubject: emailSubject,
         senderBlock: senderBlock,

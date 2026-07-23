@@ -1478,7 +1478,8 @@ function openContactForm(contact) {
   document.getElementById('cmSuchbegriff').value    = contact ? (contact.suchbegriff    || '') : '';
   document.getElementById('cmKundennummer').value   = contact ? (contact.kundennummer   || '') : '';
   document.getElementById('cmVertragsnummer').value = contact ? (contact.vertragsnummer || '') : '';
-  document.getElementById('cmEigenePlz').value      = contact ? (contact.eigene_plz     || '') : '';
+  var _plzEl = document.getElementById('cmEigenePlz');
+  if (_plzEl) _plzEl.value = contact ? (contact.eigene_plz || '') : '';
   document.getElementById('cmNotizen').value        = contact ? (contact.notizen        || '') : '';
 
   var typ = contact ? (contact.typ || 'bbm') : 'bbm';
@@ -1534,6 +1535,9 @@ function openContactForm(contact) {
     }
   }
 
+  var _delBtn = document.getElementById('cmDeleteBtn');
+  if (_delBtn) _delBtn.style.display = (contact && contact.id) ? '' : 'none';
+
   document.getElementById('contactModal').style.display = 'flex';
   setTimeout(function() { document.getElementById('cmSuchbegriff').focus(); }, 50);
 }
@@ -1542,6 +1546,14 @@ function closeContactForm() {
   document.getElementById('contactModal').style.display = 'none';
   currentContactId = null;
   clearContactPLZ();
+}
+
+function deleteContactFromModal() {
+  if (!currentContactId) return;
+  var c = allContacts.find(function(x) { return String(x.id) === String(currentContactId); });
+  if (!c) return;
+  closeContactForm();
+  deleteContact(c.id, c.suchbegriff || '—');
 }
 
 async function generateShortlink() {
@@ -1629,7 +1641,7 @@ async function saveContact() {
     suchbegriff:    suchbegriff,
     kundennummer:   document.getElementById('cmKundennummer').value.trim(),
     vertragsnummer: document.getElementById('cmVertragsnummer').value.trim(),
-    eigene_plz:     document.getElementById('cmEigenePlz').value.trim(),
+    eigene_plz:     (document.getElementById('cmEigenePlz') || {value:''}).value.trim(),
     typ:            typ,
     bl_wert:        blWert,
     notizen:        document.getElementById('cmNotizen').value.trim(),

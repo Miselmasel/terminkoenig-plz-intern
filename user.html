@@ -58,7 +58,7 @@
       <h3 style="margin:0;">GEBIETSSTATUS</h3>
       <button id="statusToggleBtn" class="bk" onclick="toggleStatusMode()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">Wünsche: aus</button>
     </div>
-    <div style="display:flex;gap:8px;flex-wrap:wrap;">
+    <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:3px 6px;">
       <div class="lr"><span class="ld" style="background:#1e8449"></span> Belegt BBM</div>
       <div class="lr"><span class="ld" style="background:#b7950b"></span> BL &gt;70%</div>
       <div class="lr"><span class="ld" style="background:#d4ac0d"></span> BL 30–70%</div>
@@ -120,7 +120,7 @@
   </div>
 
   <!-- Kunden importieren (Terminkönig XLS-Format) -->
-  <div class="s">
+  <div class="s" style="display:none;">
     <div class="tr" style="margin-bottom:4px;">
       <h3 style="margin:0;">KUNDEN IMPORTIEREN</h3>
     </div>
@@ -260,8 +260,13 @@
 
   <div class="s">
     <h3 id="ac"><span>AUSWAHL (</span><span>0</span><span>)</span></h3>
-    <div id="totalBetriebe" style="font-size:11px;color:#642d7b;font-weight:bold;margin-bottom:4px;min-height:14px;"></div>
-    <div id="al"></div>
+    <div id="totalBetriebe" style="font-size:11px;color:#642d7b;font-weight:bold;margin-bottom:2px;min-height:14px;"></div>
+    <div id="al" style="display:grid;grid-template-columns:repeat(3,1fr);gap:2px;margin-top:4px;"></div>
+  </div>
+
+  <div class="s" id="plzDetailSection" style="display:none;">
+    <h3 style="margin:0 0 4px;">PLZ-DETAILS</h3>
+    <div id="plzDetail" style="font-size:11px;max-height:220px;overflow-y:auto;"></div>
   </div>
 
   <div class="s">
@@ -364,7 +369,10 @@
   <div style="background:#fff;border-radius:6px;padding:20px;max-width:360px;width:90%;max-height:90vh;overflow-y:auto;box-shadow:0 8px 32px rgba(0,0,0,.25);font-family:Arial,sans-serif;font-size:13px;">
     <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;">
       <h2 id="cmTitle" style="margin:0;font-size:14px;color:#642d7b;">Kontakt</h2>
-      <button onclick="closeContactForm()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#642d7b;padding:0;line-height:1;">✕</button>
+      <div style="display:flex;align-items:center;gap:6px;">
+        <button id="cmDeleteBtn" onclick="deleteContactFromModal()" style="display:none;background:#e74c3c;color:#fff;border:none;border-radius:3px;padding:4px 10px;font-size:11px;cursor:pointer;">Löschen</button>
+        <button onclick="closeContactForm()" style="background:none;border:none;font-size:18px;cursor:pointer;color:#642d7b;padding:0;line-height:1;">✕</button>
+      </div>
     </div>
     <div style="display:flex;flex-direction:column;gap:8px;">
       <div>
@@ -379,6 +387,10 @@
         <div>
           <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Vertragsnummer</div>
           <input type="text" id="cmVertragsnummer" placeholder="Vtr.-Nr." style="margin:0;width:100%;box-sizing:border-box;">
+        </div>
+        <div>
+          <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:3px;">Eigene PLZ</div>
+          <input type="text" id="cmEigenePlz" placeholder="z.B. 30159" maxlength="10" style="margin:0;width:100%;box-sizing:border-box;">
         </div>
       </div>
       <div>
@@ -476,8 +488,8 @@
 </div>
 
 <script>window.holidayMapStyle = { fillColor: "#2471a3", fillOpacity: 0.55, color: "#1a5276", weight: 1.5 };</script>
-<script src="script.js?v=3"></script>
-<script src="admin.js?v=10"></script>
+<script src="script.js?v=4"></script>
+<script src="admin.js?v=11"></script>
 <script>
 // User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet
 checkLogin = async function() {
