@@ -930,6 +930,11 @@ fetch(GEO_URL)
     return r.json();
   })
   .then(function (data) {
+    // Inselteile ohne Straßenanbindung schon aus den Geodaten entfernen –
+    // dadurch verschwinden sie optisch aus allen Karten-Layern
+    data.features = data.features
+      .map(function(f) { return stripIslandParts(f); })
+      .filter(function(f) { return f !== null; });
     geoL = L.geoJSON(data, {
       style: styleFeature,
       onEachFeature: onEachFeature,
