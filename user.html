@@ -169,23 +169,6 @@
     <div id="lpContactList" style="font-size:12px;flex:1;overflow-y:auto;min-height:0;"></div>
   </div>
 
-  <!-- lpUserMgmt bleibt versteckt (kein Admin) -->
-  <div class="s" id="lpUserMgmt" style="display:none;">
-    <div class="tr" style="margin-bottom:6px;">
-      <h3 style="margin:0;">BENUTZER</h3>
-      <button class="bb" onclick="openInviteUser()" style="width:auto;margin:0;padding:3px 8px;font-size:11px;">+ Einladen</button>
-    </div>
-    <div id="lpUserList" style="font-size:11px;"></div>
-    <div id="lpInviteForm" style="display:none;margin-top:6px;">
-      <input type="email" id="lpInviteEmail" placeholder="E-Mail-Adresse" style="margin-bottom:4px;">
-      <div style="display:flex;gap:4px;">
-        <button class="bb" onclick="sendInvite()" style="flex:1;margin:0;font-size:11px;">Senden</button>
-        <button class="bk" onclick="closeInviteUser()" style="flex:1;margin:0;font-size:11px;">Abbrechen</button>
-      </div>
-      <div id="lpInviteMsg" style="font-size:10px;margin-top:4px;min-height:12px;color:#642d7b;"></div>
-    </div>
-  </div>
-
   <div style="padding:8px 10px;border-top:2px solid #e4d4ec;background:#faf7fc;font-size:10px;color:#aaa;text-align:center;margin-top:auto;">
     Terminkönig Intern © 2026 &nbsp;·&nbsp; v0.09 beta
   </div>
@@ -508,7 +491,7 @@
 
 <script>window.holidayMapStyle = { fillColor: "#2471a3", fillOpacity: 0.55, color: "#1a5276", weight: 1.5 };</script>
 <script src="script.js?v=4"></script>
-<script src="admin.js?v=13"></script>
+<script src="admin.js?v=30"></script>
 <script>
 // User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet
 checkLogin = async function() {

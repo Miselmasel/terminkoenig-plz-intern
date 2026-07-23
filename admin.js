@@ -1314,18 +1314,18 @@ function renderContactList(contacts) {
     }
 
     var sc = csc[String(c.id)] || {w:0,b:0,r:0};
-    var countHtml = '<div style="display:flex;flex-direction:column;gap:1px;flex-shrink:0;align-items:flex-end;">';
+    var countHtml = '<div style="display:flex;flex-direction:row;gap:2px;flex-shrink:0;align-items:center;">';
     if (sc.w || sc.b || sc.r) {
-      if (sc.w) countHtml += '<span style="background:#b7950b;color:#fff;border-radius:2px;padding:0 4px;font-size:8px;font-weight:bold;line-height:1.5;white-space:nowrap;">W:' + sc.w + '</span>';
-      if (sc.b) countHtml += '<span style="background:#1e8449;color:#fff;border-radius:2px;padding:0 4px;font-size:8px;font-weight:bold;line-height:1.5;white-space:nowrap;">B:' + sc.b + '</span>';
-      if (sc.r) countHtml += '<span style="background:#e67e22;color:#fff;border-radius:2px;padding:0 4px;font-size:8px;font-weight:bold;line-height:1.5;white-space:nowrap;">R:' + sc.r + '</span>';
+      if (sc.w) countHtml += '<span style="background:#b7950b;color:#fff;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:bold;line-height:1.4;white-space:nowrap;">W' + sc.w + '</span>';
+      if (sc.b) countHtml += '<span style="background:#1e8449;color:#fff;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:bold;line-height:1.4;white-space:nowrap;">B' + sc.b + '</span>';
+      if (sc.r) countHtml += '<span style="background:#e67e22;color:#fff;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:bold;line-height:1.4;white-space:nowrap;">R' + sc.r + '</span>';
     } else {
       countHtml += '<span class="ct-plz-count">0</span>';
     }
     countHtml += '</div>';
 
     var editBtn = '<button onclick="event.stopPropagation();editContact(' + JSON.stringify(c.id) + ')" title="Bearbeiten" ' +
-      'style="flex-shrink:0;width:auto;margin-top:0;background:#6b42a0;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:9px;font-weight:bold;cursor:pointer;line-height:1.5;">B</button>';
+      'style="flex-shrink:0;width:auto;margin-top:0;background:#6b42a0;color:#fff;border:none;border-radius:3px;padding:2px 6px;font-size:10px;font-weight:bold;cursor:pointer;line-height:1.4;align-self:center;">B</button>';
     var convertBtn = isInt
       ? '<button onclick="event.stopPropagation();openConvertModal(' + c.id + ')" title="In Kunde umwandeln" ' +
         'style="flex-shrink:0;width:auto;margin-top:0;background:#27ae60;color:#fff;border:none;border-radius:3px;padding:2px 5px;font-size:10px;cursor:pointer;white-space:nowrap;line-height:1.5;">→ K</button>'
@@ -1337,12 +1337,12 @@ function renderContactList(contacts) {
 
     return '<div class="ct-item" onclick="highlightContactPLZ(' + JSON.stringify(c.id) + ')"' +
       (isNeu ? ' style="border-left:3px solid #e74c3c;"' : '') + '>' +
-      '<span style="flex-shrink:0;width:14px;height:36px;background:' + ktBg + ';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">' + ktLabel + '</span>' +
+      '<span style="flex-shrink:0;width:14px;align-self:stretch;background:' + ktBg + ';border-radius:3px;display:flex;align-items:center;justify-content:center;font-size:8px;font-weight:bold;color:#fff;">' + ktLabel + '</span>' +
+      editBtn +
       '<div class="ct-info" style="flex:1;min-width:0;">' +
         '<div class="ct-name">' + esc(dispName) + (isNeu ? ' <span style="background:#e74c3c;color:#fff;border-radius:3px;padding:0 3px;font-size:8px;font-weight:bold;vertical-align:middle;">NEU</span>' : '') + '</div>' +
         '<div style="display:flex;gap:3px;margin-top:2px;flex-wrap:wrap;">' + typBadge + branchBadge + '</div>' +
       '</div>' +
-      editBtn +
       countHtml +
       convertBtn +
       delContactBtn +
