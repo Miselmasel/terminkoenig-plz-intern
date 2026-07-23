@@ -66,10 +66,69 @@ function tkEst(plz3) {
   var f = TK_KORREKTUREN[plz3] || (b.rate === 36 ? 0.35 : 0.22);
   return Math.round(b.est * f);
 }
+// ===== Inseln ohne Straßen-/Brückenverbindung =====
+// Diese Inseln werden komplett aus der Wertung genommen: keine Auswahl per
+// Umkreissuche, keine Randpunkte für die Fahrtstrecke, keine Orte in
+// Listen/Exporten. Inseln MIT Straßenanbindung (Fehmarn, Nordstrand, Rügen,
+// Usedom) bleiben drin. Bounding-Boxen: [latMin, latMax, lonMin, lonMax]
+var INSEL_BOXEN = [
+  [53.55, 53.63,  6.60,  6.78], // Borkum
+  [53.62, 53.70,  6.84,  7.07], // Juist (+ Memmert)
+  [53.68, 53.74,  7.13,  7.26], // Norderney
+  [53.70, 53.76,  7.34,  7.43], // Baltrum
+  [53.70, 53.78,  7.43,  7.57], // Langeoog
+  [53.74, 53.80,  7.63,  7.83], // Spiekeroog
+  [53.76, 53.82,  7.84,  7.98], // Wangerooge
+  [54.10, 54.23,  7.82,  7.95], // Helgoland
+  [53.88, 53.96,  8.40,  8.58], // Neuwerk
+  [54.74, 55.06,  8.26,  8.52], // Sylt (nur Autozug, keine Straße)
+  [54.66, 54.78,  8.35,  8.62], // Föhr
+  [54.60, 54.70,  8.28,  8.42], // Amrum
+  [54.47, 54.55,  8.48,  8.73], // Pellworm (+ Süderoog/Südfall)
+  [54.55, 54.68,  8.48,  8.78], // Halligen (Hooge, Langeneß, Gröde, Oland)
+  [54.525, 54.555, 8.77, 8.87], // Nordstrandischmoor
+  [54.45, 54.65, 13.04, 13.17]  // Hiddensee
+];
+
+function istInsel(lat, lng) {
+  for (var i = 0; i < INSEL_BOXEN.length; i++) {
+    var b = INSEL_BOXEN[i];
+    if (lat >= b[0] && lat <= b[1] && lng >= b[2] && lng <= b[3]) return true;
+  }
+  return false;
+}
+
+// Prüft, ob ein Polygon-Ring (GeoJSON-Koordinaten [lng,lat]) auf einer Insel liegt
+function ringAufInsel(ring) {
+  var lat = 0, lng = 0;
+  for (var i = 0; i < ring.length; i++) { lng += ring[i][0]; lat += ring[i][1]; }
+  return istInsel(lat / ring.length, lng / ring.length);
+}
+
+// plz3 -> Feature ohne Inselteile (für die Umkreissuche); null = nur Inseln
+var plzLandFeature = {};
+function stripIslandParts(feature) {
+  var g = feature.geometry;
+  if (g.type === 'Polygon') {
+    return ringAufInsel(g.coordinates[0]) ? null : feature;
+  }
+  if (g.type === 'MultiPolygon') {
+    var parts = g.coordinates.filter(function(p) { return !ringAufInsel(p[0]); });
+    if (!parts.length) return null;
+    if (parts.length === g.coordinates.length) return feature;
+    return { type: 'Feature', properties: feature.properties,
+             geometry: { type: 'MultiPolygon', coordinates: parts } };
+  }
+  return feature;
+}
+
 var plzDB = null;
 fetch('https://raw.githubusercontent.com/Miselmasel/PLZ-Datenbank/main/webtools/plz-umkreissuche/data/plz_umkreisdaten.json')
   .then(function(r){return r.json();})
-  .then(function(d){plzDB=d;})
+  .then(function(d){
+    // Orte auf autofreien Inseln raus – wirkt auf Listen, Exporte und Entfernungen
+    plzDB = d.filter(function(e){ return !istInsel(parseFloat(e.lat), parseFloat(e.lon)); });
+  })
   .catch(function(e){console.error('PLZ-DB Ladefehler:',e);});
 
 var preisklassenMode = false;
@@ -202,9 +261,11 @@ function onEachFeature(feature, layer) {
             : geom.type === 'MultiPolygon' ? geom.coordinates.map(function(p){ return p[0]; })
             : [];
   rings.forEach(function(ring) {
+    if (ringAufInsel(ring)) return; // Insel-Randpunkte zählen nicht für die Fahrtstrecke
     ring.forEach(function(c) { pts.push({ lat: c[1], lng: c[0] }); });
   });
   plzPolygons[plz3] = pts;
+  plzLandFeature[plz3] = stripIslandParts(feature);
   layer.bindTooltip(function(l) {
     var p = l.feature.properties.plz;
     var txt = '<strong>' + p + 'xx</strong>';
@@ -710,8 +771,11 @@ function multiUmkreis() {
     });
     Object.keys(allLayers).forEach(function (q) {
       if (sel[q]) return;
-      var layerGeoJSON = allLayers[q].toGeoJSON();
-      if (turf.booleanIntersects(circlePoly, layerGeoJSON)) {
+      // Nur Festland-Geometrie testen – trifft der Kreis nur einen Inselteil
+      // (übers Wasser), wird das Gebiet nicht ausgewählt
+      var landF = plzLandFeature[q];
+      if (!landF) return;
+      if (turf.booleanIntersects(circlePoly, landF)) {
         sel[q] = true;
         refreshLayer(q);
       }
