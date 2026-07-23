@@ -435,6 +435,20 @@
         <div id="cmDocMsg" style="font-size:10px;margin-top:3px;min-height:12px;color:#642d7b;"></div>
       </div>
     </div>
+      <div id="cmShortlinkSection" style="display:none;margin-bottom:4px;">
+        <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:4px;">Individuallink</div>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;margin-bottom:5px;cursor:pointer;">
+          <input type="checkbox" id="cmShortlinkGebiete" checked style="width:auto;margin:0;">
+          Bestehende Gebiete vorab markieren
+        </label>
+        <button id="cmShortlinkBtn" onclick="generateShortlink()" style="width:100%;background:#642d7b;color:#fff;border:none;border-radius:3px;padding:5px 10px;font-size:11px;cursor:pointer;">Link generieren</button>
+        <div id="cmShortlinkResult" style="display:none;margin-top:5px;">
+          <div id="cmShortlinkUrl" onclick="copyShortlink()" style="font-size:10px;color:#642d7b;word-break:break-all;background:#f5edfb;padding:4px 6px;border-radius:3px;cursor:pointer;"></div>
+          <div style="font-size:10px;color:#888;margin-top:2px;">Klick = in Zwischenablage kopieren</div>
+        </div>
+        <div id="cmShortlinkHistory" style="margin-top:6px;"></div>
+      </div>
+    </div>
     <div style="display:flex;gap:6px;margin-top:14px;">
       <button class="bb" onclick="saveContact()" style="flex:1;margin:0;">Speichern</button>
       <button class="bk" onclick="closeContactForm()" style="flex:1;margin:0;">Abbrechen</button>
@@ -490,7 +504,7 @@
 
 <script>window.holidayMapStyle = { fillColor: "#2471a3", fillOpacity: 0.55, color: "#1a5276", weight: 1.5 };</script>
 <script src="script.js?v=4"></script>
-<script src="admin.js?v=11"></script>
+<script src="admin.js?v=12"></script>
 <script>
 // User-Ansicht: kein Admin-Bereich, Admin wird zu index.html weitergeleitet
 checkLogin = async function() {

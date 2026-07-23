@@ -534,11 +534,16 @@
 
       <div id="cmShortlinkSection" style="display:none;margin-bottom:10px;">
         <div style="font-size:10px;font-weight:bold;color:#888;text-transform:uppercase;margin-bottom:4px;">Individuallink</div>
+        <label style="display:flex;align-items:center;gap:5px;font-size:11px;margin-bottom:5px;cursor:pointer;">
+          <input type="checkbox" id="cmShortlinkGebiete" checked style="width:auto;margin:0;">
+          Bestehende Gebiete vorab markieren
+        </label>
         <button id="cmShortlinkBtn" onclick="generateShortlink()" style="width:100%;background:#642d7b;color:#fff;border:none;border-radius:3px;padding:5px 10px;font-size:11px;cursor:pointer;">Link generieren</button>
         <div id="cmShortlinkResult" style="display:none;margin-top:5px;">
           <div id="cmShortlinkUrl" onclick="copyShortlink()" style="font-size:10px;color:#642d7b;word-break:break-all;background:#f5edfb;padding:4px 6px;border-radius:3px;cursor:pointer;"></div>
           <div style="font-size:10px;color:#888;margin-top:2px;">Klick = in Zwischenablage kopieren</div>
         </div>
+        <div id="cmShortlinkHistory" style="margin-top:6px;"></div>
       </div>
 
       <div id="cmDocsSection" style="display:none;">
@@ -564,6 +569,6 @@
 <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <script src="script.js?v=9"></script>
-<script src="admin.js?v=26"></script>
+<script src="admin.js?v=27"></script>
 </body>
 </html>

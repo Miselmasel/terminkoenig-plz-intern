@@ -1517,8 +1517,13 @@ function openContactForm(contact) {
       if (slBtn) { slBtn.textContent = 'Link generieren'; slBtn.disabled = false; }
       var slResult = document.getElementById('cmShortlinkResult');
       if (slResult) slResult.style.display = 'none';
+      var slCb = document.getElementById('cmShortlinkGebiete');
+      if (slCb) slCb.checked = true;
+      loadContactLinks(contact.id);
     } else {
       slSection.style.display = 'none';
+      var histEl = document.getElementById('cmShortlinkHistory');
+      if (histEl) histEl.innerHTML = '';
     }
   }
 
@@ -1570,8 +1575,9 @@ async function generateShortlink() {
   var urlEl = document.getElementById('cmShortlinkUrl');
   if (btn) { btn.disabled = true; btn.textContent = 'Wird generiert…'; }
 
+  var mitGebiete = document.getElementById('cmShortlinkGebiete');
   var gebiete = [];
-  if (window.plzStatusData) {
+  if ((!mitGebiete || mitGebiete.checked) && window.plzStatusData) {
     Object.keys(window.plzStatusData).forEach(function(plz3) {
       var entries = window.plzStatusData[plz3];
       if (Array.isArray(entries) && entries.some(function(e) {
@@ -1584,6 +1590,7 @@ async function generateShortlink() {
 
   var parts = (contact.suchbegriff || '').trim().split(/\s+/);
   var payload = {
+    _contact_id: contact.id,
     typ: contact.kundennummer ? 'kunde' : 'interessent',
     vorname: parts[0] || '',
     nachname: parts.slice(1).join(' ') || '',
@@ -1611,6 +1618,7 @@ async function generateShortlink() {
         setTimeout(function() { if (btn) btn.textContent = 'Neu generieren'; }, 2000);
       }).catch(function() {});
     }
+    loadContactLinks(contact.id);
   } catch(e) {
     if (btn) { btn.textContent = 'Link generieren'; btn.disabled = false; }
     alert('Fehler beim Generieren: ' + e.message);
@@ -1626,6 +1634,59 @@ function copyShortlink() {
       setTimeout(function() { urlEl.style.background = '#f5edfb'; }, 1200);
     }).catch(function() {});
   }
+}
+
+function copyShortlinkUrl(url) {
+  if (navigator.clipboard) navigator.clipboard.writeText(url).catch(function(){});
+}
+
+async function loadContactLinks(contactId) {
+  var histEl = document.getElementById('cmShortlinkHistory');
+  if (!histEl) return;
+  histEl.innerHTML = '<span style="font-size:10px;color:#aaa;">Lädt…</span>';
+  try {
+    var resp = await fetch('https://terminkoenig.plz-vertriebsplaner.de/link.php?contact_id=' + encodeURIComponent(contactId));
+    var data = await resp.json();
+    if (!data.ok || !data.links || !data.links.length) { histEl.innerHTML = ''; return; }
+    var html = '<div style="font-size:10px;font-weight:bold;color:#888;margin-bottom:3px;">Bisherige Links & Kundeneingaben</div>';
+    data.links.forEach(function(link, li) {
+      var url = 'https://terminkoenig.plz-vertriebsplaner.de/?c=' + link.token;
+      var d = link.created ? new Date(link.created * 1000).toLocaleDateString('de-DE') : '?';
+      var versions = link.versions || [];
+      html += '<div style="background:#faf7fc;border:1px solid #e4d4ec;border-radius:3px;padding:5px 7px;margin-bottom:5px;">';
+      html += '<div style="display:flex;align-items:center;gap:4px;justify-content:space-between;margin-bottom:3px;">';
+      html += '<span style="font-size:10px;color:#aaa;">Link ' + (li + 1) + ' · ' + d + (link.gebiete && link.gebiete.length ? ' · ' + link.gebiete.length + ' Gebiete' : '') + '</span>';
+      html += '<button onclick="copyShortlinkUrl(\'' + url + '\')" style="font-size:9px;width:auto;margin:0;padding:1px 6px;background:#e4d4ec;color:#642d7b;border:none;border-radius:2px;cursor:pointer;">Kopieren</button>';
+      html += '</div>';
+      if (!versions.length) {
+        html += '<span style="font-size:10px;color:#bbb;">Noch keine Kundeneingabe</span>';
+      } else {
+        versions.forEach(function(v, i) {
+          var isLatest = i === versions.length - 1;
+          var vd = v._ts ? new Date(v._ts * 1000).toLocaleDateString('de-DE') : '?';
+          var cnt = (v.gebiete || []).length;
+          html += '<div style="display:flex;align-items:center;gap:4px;margin-top:3px;">';
+          html += '<span style="font-size:10px;color:#555;">Eingabe ' + (i + 1) + ' – ' + vd + ' – ' + cnt + ' PLZ</span>';
+          if (isLatest) html += '<span style="font-size:9px;background:#27ae60;color:#fff;border-radius:2px;padding:0 4px;flex-shrink:0;">Aktiv</span>';
+          html += '<button onclick="previewShortlinkVersion(' + JSON.stringify(v.gebiete || []) + ')" style="font-size:9px;width:auto;margin:0;padding:1px 6px;background:#642d7b;color:#fff;border:none;border-radius:2px;cursor:pointer;flex-shrink:0;">Anzeigen</button>';
+          html += '</div>';
+        });
+      }
+      html += '</div>';
+    });
+    histEl.innerHTML = html;
+  } catch(e) { histEl.innerHTML = ''; }
+}
+
+function previewShortlinkVersion(gebiete) {
+  if (!Array.isArray(gebiete) || !gebiete.length) return;
+  if (typeof sel === 'undefined') return;
+  // Aktuelle Auswahl ersetzen durch diese Version
+  Object.keys(sel).forEach(function(p) { delete sel[p]; });
+  gebiete.forEach(function(p) { sel[p] = true; });
+  if (typeof refreshAll === 'function') refreshAll();
+  if (typeof updateSidebar === 'function') updateSidebar();
+  if (typeof window.updateSelCount === 'function') window.updateSelCount();
 }
 
 async function saveContact() {
